@@ -11,8 +11,8 @@
     <!-- Babel (Compiler für React im Browser) -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
-    <!-- Custom Font für das Logo -->
-    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@700&display=swap" rel="stylesheet">
+    <!-- Custom Fonts: Caveat für Signatur, Orbitron für AI-Look -->
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
     
     <style>
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -21,6 +21,7 @@
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .color-scheme-dark { color-scheme: dark; }
         .signature-font { font-family: 'Caveat', cursive; }
+        .ai-font { font-family: 'Orbitron', sans-serif; }
         @media print {
             body { background: white !important; color: black !important; }
             .no-print { display: none !important; }
@@ -44,7 +45,7 @@
         // Firebase Imports
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
-        import { getFirestore, collection, doc, onSnapshot, deleteDoc, addDoc, updateDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+        import { getFirestore, collection, doc, setDoc, onSnapshot, deleteDoc, addDoc, updateDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 
         // =========================================================================
         // 🔴 FIREBASE KONFIGURATION HIER EINFÜGEN 🔴
@@ -84,7 +85,7 @@
         };
         const SET_TYPES = ['Arbeitssatz', 'Aufwärmsatz', 'Dropset', 'Top-Set'];
 
-        // --- AUSGELAGERTE KOMPONENTEN (LÖST DAS TASTATUR-PROBLEM) ---
+        // --- AUSGELAGERTE KOMPONENTEN ---
         const GlassCard = ({ children, className = '' }) => (
             <div className={`bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl rounded-3xl p-5 ${className}`}>{children}</div>
         );
@@ -220,11 +221,15 @@
           // Auth & User System
           const [firebaseUser, setFirebaseUser] = useState(null);
           const [appUsers, setAppUsers] = useState([]);
-          const [loggedInUser, setLoggedInUser] = useState(null); // { username, role }
+          const [loggedInUser, setLoggedInUser] = useState(null); 
           const [authLoading, setAuthLoading] = useState(true);
           
+          // Admin States (gefixt, damit React Hooks nicht crashen)
+          const [adminNewUName, setAdminNewUName] = useState('');
+          const [adminNewUPin, setAdminNewUPin] = useState('');
+
           // Login State
-          const [loginStep, setLoginStep] = useState('username'); // 'username' | 'pin'
+          const [loginStep, setLoginStep] = useState('username'); 
           const [loginUsername, setLoginUsername] = useState('');
           const [loginPin, setLoginPin] = useState('');
 
@@ -233,6 +238,10 @@
           const [standards, setStandards] = useState([]);
           const [dataLoading, setDataLoading] = useState(false);
           
+          // Heatmap Settings
+          const [heatmapSettings, setHeatmapSettings] = useState({ exhausted: 24, recovering: 48 });
+          const [isHeatmapModalOpen, setIsHeatmapModalOpen] = useState(false);
+
           // Tracking
           const [selectedStandard, setSelectedStandard] = useState('');
           const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -275,7 +284,7 @@
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
                 else await signInAnonymously(auth);
               } catch (error) { 
-                  showToast("Auth-Fehler: " + error.message, 'error'); 
+                  showToast("Auth-Fehler: Bitte aktiviere die anonyme Anmeldung in Firebase", 'error'); 
                   setAuthLoading(false); 
               }
             };
@@ -293,8 +302,8 @@
               const unsub = onSnapshot(usersRef, (snap) => {
                   const fetchedUsers = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                   
-                  // Bootstrap Admin AYOUB if DB is entirely empty
                   if (fetchedUsers.length === 0) {
+                      // Automatischer Bootstrap: Erstellt den AYOUB Admin
                       addDoc(usersRef, { username: 'AYOUB', pin: '0000', role: 'admin' })
                       .catch(e => console.error("Bootstrap Error", e));
                   } else {
@@ -312,9 +321,9 @@
           const loadPersonalData = async () => {
               if (!loggedInUser || !firebaseUser || !db) return;
               setDataLoading(true);
-              // Rule 1: We use the logged in username as the folder ID to persist across devices
               const wRef = collection(db, 'artifacts', appId, 'users', loggedInUser.username, 'workouts');
               const sRef = collection(db, 'artifacts', appId, 'users', loggedInUser.username, 'standards');
+              const prefRef = doc(db, 'artifacts', appId, 'users', loggedInUser.username, 'settings', 'preferences');
               
               const unsubW = onSnapshot(wRef, (snap) => {
                   const fetched = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -326,7 +335,13 @@
                   setStandards(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
               });
 
-              return () => { unsubW(); unsubS(); };
+              const unsubPref = onSnapshot(prefRef, (docSnap) => {
+                  if (docSnap.exists() && docSnap.data().heatmap) {
+                      setHeatmapSettings(docSnap.data().heatmap);
+                  }
+              });
+
+              return () => { unsubW(); unsubS(); unsubPref(); };
           };
 
           useEffect(() => {
@@ -415,7 +430,7 @@
                 showToast("Satz geloggt!");
                 setWeight(''); setReps('');
                 setRestTimeRemaining(restDuration); setIsRestTimerActive(true);
-            } catch (error) { showToast("Fehler beim Speichern: " + error.message, 'error'); }
+            } catch (error) { showToast("Fehler beim Speichern", 'error'); }
           };
 
           const handleDeleteSet = async (id) => {
@@ -437,6 +452,17 @@
               } catch (error) { showToast("Update fehlgeschlagen", 'error'); }
           };
 
+          const saveHeatmapSettings = async () => {
+              if(!firebaseUser || !db) return;
+              try {
+                  await setDoc(doc(db, 'artifacts', appId, 'users', loggedInUser.username, 'settings', 'preferences'), {
+                      heatmap: heatmapSettings
+                  }, { merge: true });
+                  setIsHeatmapModalOpen(false);
+                  showToast("Regenerationszeiten gespeichert!");
+              } catch (e) { showToast("Speichern fehlgeschlagen", "error"); }
+          };
+
 
           // --- VIEWS ---
 
@@ -449,7 +475,9 @@
                       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-900/30 rounded-full blur-[100px] z-0"></div>
                       <GlassCard className="w-full max-w-sm relative z-10 !p-8 flex flex-col items-center text-center">
                           <Activity className="w-12 h-12 text-lime-400 mb-4" />
-                          <h1 className="text-3xl font-black text-white tracking-tight mb-8">Lift<span className="text-lime-400">Pro</span></h1>
+                          <h1 className="text-4xl font-black text-white tracking-tight mb-1">Lift<span className="text-lime-400">Pro</span></h1>
+                          <span className="text-[18px] signature-font font-bold tracking-wide block mb-1" style={{ background: 'linear-gradient(to right, #a3e635, #3b82f6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Made by Ayoub</span>
+                          <span className="text-[10px] ai-font text-blue-400 tracking-[0.3em] uppercase mb-8 block opacity-80">Made by AI</span>
                           
                           {loginStep === 'username' ? (
                               <div className="w-full animate-fade-in">
@@ -469,21 +497,17 @@
                               </div>
                           )}
                       </GlassCard>
-                      <p className="mt-8 text-xs text-gray-500 z-10">Standard Admin-PIN bei Ersteinrichtung: <strong className="text-white">0000</strong></p>
                   </div>
               );
           }
 
           const renderTabAdmin = () => {
-              const [newUName, setNewUName] = useState('');
-              const [newUPin, setNewUPin] = useState('');
-
               const handleAddUser = async () => {
-                  if (!newUName || newUPin.length !== 4) { showToast("Name & 4-stelliger PIN benötigt", "error"); return; }
-                  if (appUsers.some(u => u.username.toUpperCase() === newUName.toUpperCase())) { showToast("Nutzer existiert bereits", "error"); return; }
+                  if (!adminNewUName || adminNewUPin.length !== 4) { showToast("Name & 4-stelliger PIN benötigt", "error"); return; }
+                  if (appUsers.some(u => u.username.toUpperCase() === adminNewUName.toUpperCase())) { showToast("Nutzer existiert bereits", "error"); return; }
                   try {
-                      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'app_users'), { username: newUName.toUpperCase(), pin: newUPin, role: 'user' });
-                      setNewUName(''); setNewUPin(''); showToast("Nutzer angelegt!");
+                      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'app_users'), { username: adminNewUName.toUpperCase(), pin: adminNewUPin, role: 'user' });
+                      setAdminNewUName(''); setAdminNewUPin(''); showToast("Nutzer angelegt!");
                   } catch (error) { showToast("Fehler beim Anlegen", "error"); }
               };
 
@@ -502,8 +526,8 @@
                       <GlassCard className="border-blue-500/30">
                           <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Neuen Nutzer anlegen</h3>
                           <div className="flex gap-2 mb-4">
-                              <input type="text" placeholder="Name" value={newUName} onChange={e=>setNewUName(e.target.value)} className="flex-2 bg-black/40 text-white rounded-lg p-3 border border-white/20 outline-none w-full uppercase" />
-                              <input type="number" placeholder="PIN (4)" value={newUPin} onChange={e=>setNewUPin(e.target.value.slice(0,4))} className="flex-1 bg-black/40 text-white rounded-lg p-3 border border-white/20 outline-none w-24 text-center" />
+                              <input type="text" placeholder="Name" value={adminNewUName} onChange={e=>setAdminNewUName(e.target.value)} className="flex-2 bg-black/40 text-white rounded-lg p-3 border border-white/20 outline-none w-full uppercase" />
+                              <input type="number" placeholder="PIN (4)" value={adminNewUPin} onChange={e=>setAdminNewUPin(e.target.value.slice(0,4))} className="flex-1 bg-black/40 text-white rounded-lg p-3 border border-white/20 outline-none w-24 text-center" />
                           </div>
                           <button onClick={handleAddUser} className="w-full bg-blue-500 hover:bg-blue-400 text-black font-bold p-3 rounded-lg flex items-center justify-center gap-2 transition"><UserPlus className="w-4 h-4"/> Nutzer anlegen</button>
                       </GlassCard>
@@ -656,13 +680,13 @@
           const renderTabHeatmap = () => {
               const getMuscleState = (muscleGrp) => {
                   const now = Date.now();
-                  const recentWorkouts = workouts.filter(w => w.muscle === muscleGrp && (now - w.timestamp) <= 72 * 3600 * 1000);
+                  const recentWorkouts = workouts.filter(w => w.muscle === muscleGrp && (now - w.timestamp) <= (heatmapSettings.recovering + 24) * 3600 * 1000);
                   if (recentWorkouts.length === 0) return { fill: 'rgba(255,255,255,0.05)', stroke: 'rgba(255,255,255,0.2)', label: 'Erholt', hex: '#84cc16' }; 
                   
                   const mostRecent = Math.max(...recentWorkouts.map(w => w.timestamp));
                   const hoursAgo = (now - mostRecent) / (1000 * 3600);
-                  if (hoursAgo <= 24) return { fill: 'rgba(239,68,68,0.85)', stroke: '#fca5a5', label: `Erschöpft (${Math.round(hoursAgo)}h)`, hex: '#ef4444' };
-                  if (hoursAgo <= 48) return { fill: 'rgba(245,158,11,0.85)', stroke: '#fcd34d', label: `Regeneration (${Math.round(hoursAgo)}h)`, hex: '#f59e0b' };
+                  if (hoursAgo <= heatmapSettings.exhausted) return { fill: 'rgba(239,68,68,0.85)', stroke: '#fca5a5', label: `Erschöpft (${Math.round(hoursAgo)}h)`, hex: '#ef4444' };
+                  if (hoursAgo <= heatmapSettings.recovering) return { fill: 'rgba(245,158,11,0.85)', stroke: '#fcd34d', label: `Regeneration (${Math.round(hoursAgo)}h)`, hex: '#f59e0b' };
                   return { fill: 'rgba(132,204,22,0.85)', stroke: '#bef264', label: `Erholt (${Math.round(hoursAgo)}h)`, hex: '#84cc16' };
               };
 
@@ -670,13 +694,36 @@
 
               return (
                   <PullToRefresh onRefresh={loadPersonalData}>
-                      <div className="space-y-6 pb-32 animate-fade-in">
+                      <div className="space-y-6 pb-32 animate-fade-in relative">
                           <div className="flex justify-between items-center mb-4">
-                              <div><h2 className="text-2xl font-bold text-white">Anatomie</h2><p className="text-sm text-gray-400">Medizinische Heatmap (72h).</p></div>
-                              <button onClick={() => setBodyView(bodyView === 'front' ? 'back' : 'front')} className="flex items-center gap-2 bg-white/10 px-4 py-2 rounded-full text-xs font-bold text-white border border-white/20 hover:bg-white/20 transition shadow-lg">
-                                  <RefreshCcw className="w-4 h-4" /> {bodyView === 'front' ? 'Rückenansicht' : 'Frontansicht'}
-                              </button>
+                              <div><h2 className="text-2xl font-bold text-white">Anatomie</h2><p className="text-sm text-gray-400">Medizinische Heatmap.</p></div>
+                              <div className="flex gap-2">
+                                  <button onClick={() => setBodyView(bodyView === 'front' ? 'back' : 'front')} className="flex items-center gap-2 bg-white/10 px-3 py-2 rounded-full text-xs font-bold text-white border border-white/20 hover:bg-white/20 transition shadow-lg">
+                                      <RefreshCcw className="w-4 h-4" />
+                                  </button>
+                                  <button onClick={() => setIsHeatmapModalOpen(true)} className="flex items-center gap-2 bg-white/10 px-3 py-2 rounded-full text-xs font-bold text-white border border-white/20 hover:bg-white/20 transition shadow-lg">
+                                      <Settings className="w-4 h-4" />
+                                  </button>
+                              </div>
                           </div>
+
+                          {isHeatmapModalOpen && (
+                              <GlassCard className="absolute top-10 left-0 w-full z-30 border-lime-500/50 shadow-[0_0_30px_rgba(132,204,22,0.1)]">
+                                  <div className="flex justify-between items-center mb-4"><h3 className="font-bold text-white text-lg">Regenerations-Zeiten</h3><button onClick={() => setIsHeatmapModalOpen(false)}><X className="text-gray-400 hover:text-white"/></button></div>
+                                  <div className="space-y-4 mb-4">
+                                      <div>
+                                          <label className="block text-[10px] font-bold text-red-400 uppercase tracking-wider mb-1">Erschöpft Phase (in Stunden)</label>
+                                          <input type="number" value={heatmapSettings.exhausted} onChange={e=>setHeatmapSettings({...heatmapSettings, exhausted: parseInt(e.target.value) || 0})} className="w-full bg-black/40 text-white rounded-lg p-2 border border-white/20 outline-none" />
+                                      </div>
+                                      <div>
+                                          <label className="block text-[10px] font-bold text-amber-400 uppercase tracking-wider mb-1">Aufbau Phase (in Stunden)</label>
+                                          <input type="number" value={heatmapSettings.recovering} onChange={e=>setHeatmapSettings({...heatmapSettings, recovering: parseInt(e.target.value) || 0})} className="w-full bg-black/40 text-white rounded-lg p-2 border border-white/20 outline-none" />
+                                          <p className="text-[9px] text-gray-500 mt-1">Nach der Aufbauphase gilt der Muskel wieder als erholt (Grün).</p>
+                                      </div>
+                                  </div>
+                                  <button onClick={saveHeatmapSettings} className="w-full bg-lime-500 text-black font-bold p-2 rounded-lg">Speichern</button>
+                              </GlassCard>
+                          )}
 
                           <GlassCard className="flex flex-col items-center justify-center py-8 relative overflow-hidden">
                               <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/50 pointer-events-none rounded-3xl"></div>
