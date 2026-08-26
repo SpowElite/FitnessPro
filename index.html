@@ -8,23 +8,40 @@
     <!-- Tailwind CSS (Design System) -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Babel (Compiler für den React Code im Browser) -->
+    <!-- Babel (Compiler für React im Browser) -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
     <!-- Custom Font für das Logo -->
     <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@700&display=swap" rel="stylesheet">
+    
+    <style>
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .color-scheme-dark { color-scheme: dark; }
+        .signature-font { font-family: 'Caveat', cursive; }
+        @media print {
+            body { background: white !important; color: black !important; }
+            .no-print { display: none !important; }
+            .print-container { padding: 0 !important; margin: 0 !important; }
+            .print-block { display: block !important; }
+            .print-text-black { color: black !important; }
+            .print-card { background: transparent !important; border: 1px solid #ddd !important; box-shadow: none !important; break-inside: avoid; }
+            .print-list-item { background: transparent !important; border-bottom: 1px solid #eee !important; border-radius: 0 !important; }
+        }
+    </style>
 </head>
 <body class="bg-[#050505] text-gray-200">
-    <!-- Hier wird die App gerendert -->
+    <!-- React Root -->
     <div id="root"></div>
 
-    <!-- App Logik & React Code -->
     <script type="text/babel" data-type="module">
         import React, { useState, useEffect, useRef, useMemo } from 'https://esm.sh/react@18';
         import { createRoot } from 'https://esm.sh/react-dom@18/client';
-        import { Mic, Activity, BarChart2, Layers, Plus, Check, Play, Square, Download, Calendar as CalendarIcon, Dumbbell, Settings, Clock, Loader2, AlertCircle, StopCircle, Zap, HeartPulse, Share, RefreshCcw, X, Edit2, Save, Trash2, ChevronLeft, ChevronRight, Pause, RotateCcw } from 'https://esm.sh/lucide-react@0.292.0';
+        import { Mic, Activity, BarChart2, Layers, Plus, Check, Play, Square, Download, Calendar as CalendarIcon, Dumbbell, Settings, Clock, Loader2, AlertCircle, StopCircle, Zap, HeartPulse, Share, RefreshCcw, X, Edit2, Save, Trash2, ChevronLeft, ChevronRight, Pause, RotateCcw, Delete, Users, UserPlus } from 'https://esm.sh/lucide-react@0.292.0';
         
-        // Firebase Cloud Firestore & Auth
+        // Firebase Imports
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
         import { getFirestore, collection, doc, onSnapshot, deleteDoc, addDoc, updateDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
@@ -32,41 +49,28 @@
         // =========================================================================
         // 🔴 FIREBASE KONFIGURATION HIER EINFÜGEN 🔴
         // =========================================================================
-        // Gehe zu Firebase Console -> Projektübersicht -> Web-App hinzufügen (</> Symbol)
-        // Kopiere den config Code-Block und ersetze die Werte hier:
         const userFirebaseConfig = {
-
-  apiKey: "AIzaSyCtywUWLZhUle91YJgQL27NdsP7QOhp-G8",
-
-  authDomain: "fitnesspro-eaac9.firebaseapp.com",
-
-  projectId: "fitnesspro-eaac9",
-
-  storageBucket: "fitnesspro-eaac9.firebasestorage.app",
-
-  messagingSenderId: "132609835060",
-
-  appId: "1:132609835060:web:92c09b4c228d6a9455ca61",
-
-  measurementId: "G-3F9X1MNVMN"
-
-};
+            apiKey: "DEIN_API_KEY",
+            authDomain: "DEIN_PROJEKT.firebaseapp.com",
+            projectId: "DEIN_PROJEKT_ID",
+            storageBucket: "DEIN_PROJEKT.appspot.com",
+            messagingSenderId: "DEINE_MESSAGING_ID",
+            appId: "DEINE_APP_ID"
+        };
         // =========================================================================
 
-        // --- FIREBASE INITIALISIERUNG ---
         let app, auth, db, appId;
         try {
-            // Fallback: Nutzt interne Config falls im Preview-Fenster, ansonsten deine GitHub Config
             const configToUse = (typeof __firebase_config !== 'undefined' && __firebase_config) ? JSON.parse(__firebase_config) : userFirebaseConfig;
             app = initializeApp(configToUse);
             auth = getAuth(app);
             db = getFirestore(app);
             appId = typeof __app_id !== 'undefined' ? __app_id : 'liftpro-github';
         } catch (e) { 
-            console.error("Firebase Init Fehler. Hast du deine Config eingefügt?", e); 
+            console.error("Firebase Init Fehler", e); 
         }
 
-        // --- WISSENSDATENBANK ---
+        // --- KONSTANTEN ---
         const MUSCLE_GROUPS = ['Brust', 'Rücken', 'Beine', 'Schultern', 'Arme', 'Core', 'Cardio'];
         const EXERCISES = {
           'Brust': ['Bankdrücken (Langhantel, flach)', 'Bankdrücken (Kurzhantel, flach)', 'Schrägbankdrücken', 'Butterfly', 'Cable Cross', 'Dips (Brust)'],
@@ -79,17 +83,156 @@
         };
         const SET_TYPES = ['Arbeitssatz', 'Aufwärmsatz', 'Dropset', 'Top-Set'];
 
+        // --- AUSGELAGERTE KOMPONENTEN (LÖST DAS TASTATUR-PROBLEM) ---
+        const GlassCard = ({ children, className = '' }) => (
+            <div className={`bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl rounded-3xl p-5 ${className}`}>{children}</div>
+        );
+
+        const Toast = ({ message, type }) => {
+            if (!message) return null;
+            return (
+                <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] animate-fade-in no-print">
+                    <div className={`px-4 py-3 rounded-2xl shadow-2xl backdrop-blur-md border text-sm font-bold flex items-center gap-2 ${type === 'error' ? 'bg-red-500/20 border-red-500/50 text-red-400' : 'bg-lime-500/20 border-lime-500/50 text-lime-400'}`}>
+                        {type === 'error' ? <AlertCircle className="w-5 h-5" /> : <Check className="w-5 h-5" />}
+                        {message}
+                    </div>
+                </div>
+            );
+        };
+
+        const PullToRefresh = ({ children, onRefresh }) => {
+            const [pullDistance, setPullDistance] = useState(0);
+            const [isRefreshing, setIsRefreshing] = useState(false);
+            const startY = useRef(0);
+
+            const handleTouchStart = (e) => { if (window.scrollY === 0) startY.current = e.touches[0].clientY; };
+            const handleTouchMove = (e) => {
+                if (window.scrollY === 0 && startY.current > 0) {
+                    const y = e.touches[0].clientY;
+                    const distance = y - startY.current;
+                    if (distance > 0) setPullDistance(Math.min(distance * 0.4, 80));
+                }
+            };
+            const handleTouchEnd = async () => {
+                if (pullDistance > 50) {
+                    setIsRefreshing(true);
+                    await onRefresh();
+                    setIsRefreshing(false);
+                }
+                setPullDistance(0);
+                startY.current = 0;
+            };
+
+            return (
+                <div onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} style={{ transform: `translateY(${pullDistance}px)`, transition: pullDistance === 0 && !isRefreshing ? 'transform 0.3s ease' : 'none' }}>
+                    <div className="absolute left-0 w-full flex justify-center items-center pointer-events-none" style={{ top: '-60px', height: '60px', opacity: pullDistance / 80 }}>
+                        <RefreshCcw className={`text-lime-500 w-8 h-8 ${isRefreshing ? 'animate-spin' : ''}`} style={{ transform: `rotate(${pullDistance * 3}deg)` }} />
+                    </div>
+                    {children}
+                </div>
+            );
+        };
+
+        const WorkoutItem = ({ w, editingSetId, editData, setEditingSetId, setEditData, handleUpdateSet, handleDeleteSet }) => {
+            if (editingSetId === w.id) {
+                return (
+                    <div className="bg-lime-900/30 p-3 rounded-xl border border-lime-500/50 space-y-3 animate-fade-in no-print">
+                        <div className="flex justify-between items-center text-[10px] text-lime-400 font-bold uppercase mb-2">
+                            <span>Bearbeiten</span><button onClick={() => setEditingSetId(null)}><X className="w-4 h-4 text-gray-400" /></button>
+                        </div>
+                        <select value={editData.exercise} onChange={e => setEditData({...editData, exercise: e.target.value})} className="w-full bg-black/40 text-white rounded-lg p-2 border border-white/20 outline-none text-sm">
+                            {Object.values(EXERCISES).flat().map(ex => <option key={ex} value={ex}>{ex}</option>)}
+                        </select>
+                        <div className="flex gap-2">
+                            <div className="flex-1 relative">
+                                <span className="absolute top-2.5 left-2 text-[10px] text-gray-500">KG</span>
+                                <input type="number" value={editData.weight} onChange={e => setEditData({...editData, weight: e.target.value})} className="w-full bg-black/40 text-white rounded-lg p-2 pl-7 border border-white/20 outline-none text-sm font-bold" />
+                            </div>
+                            <div className="flex-1 relative">
+                                <span className="absolute top-2.5 left-2 text-[10px] text-gray-500">Rep</span>
+                                <input type="number" value={editData.reps} onChange={e => setEditData({...editData, reps: e.target.value})} className="w-full bg-black/40 text-white rounded-lg p-2 pl-8 border border-white/20 outline-none text-sm font-bold" />
+                            </div>
+                            <button onClick={handleUpdateSet} className="bg-lime-500 text-black p-2 rounded-lg font-bold"><Save className="w-5 h-5" /></button>
+                        </div>
+                    </div>
+                );
+            }
+            return (
+                <div className="flex justify-between items-center bg-white/5 p-3 rounded-xl border border-white/5 group transition-colors hover:bg-white/10 print-list-item">
+                    <div>
+                        <div className="font-bold text-sm text-gray-100 print-text-black">{w.exercise}</div>
+                        <div className="flex gap-2 items-center text-[10px] print-text-black">
+                            <span className="text-amber-400 print-text-black">{w.setType}</span>
+                            {w.estimated1RM > 0 && <span className="text-gray-500 print-text-black">| 1RM: {w.estimated1RM}kg</span>}
+                        </div>
+                    </div>
+                    <div className="text-right flex items-center gap-3">
+                        <div>
+                            <div className="font-bold text-lime-400 print-text-black">{w.weight}kg × {w.reps}</div>
+                            <div className="text-[10px] text-gray-500 print-text-black">{w.timeString}</div>
+                        </div>
+                        <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity no-print">
+                            <button onClick={() => { setEditingSetId(w.id); setEditData({exercise:w.exercise,weight:w.weight,reps:w.reps}); }} className="text-blue-400 hover:bg-blue-500/20 p-1 rounded"><Edit2 className="w-3.5 h-3.5" /></button>
+                            <button onClick={() => handleDeleteSet(w.id)} className="text-red-500 hover:bg-red-500/20 p-1 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const Numpad = ({ pin, setPin, onSubmit }) => {
+            const handleNum = (n) => { if (pin.length < 4) setPin(pin + n); };
+            const handleDel = () => { setPin(pin.slice(0, -1)); };
+            
+            useEffect(() => { if (pin.length === 4) onSubmit(); }, [pin]);
+
+            return (
+                <div className="w-full max-w-[250px] mx-auto mt-6">
+                    <div className="flex justify-center gap-4 mb-6">
+                        {[0,1,2,3].map(i => (
+                            <div key={i} className={`w-4 h-4 rounded-full transition-colors ${i < pin.length ? 'bg-lime-500 shadow-[0_0_10px_#84cc16]' : 'bg-white/10'}`}></div>
+                        ))}
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                        {[1,2,3,4,5,6,7,8,9].map(n => (
+                            <button key={n} onClick={() => handleNum(n.toString())} className="h-16 rounded-full bg-white/5 hover:bg-white/10 text-2xl font-black text-white flex items-center justify-center transition active:scale-95">{n}</button>
+                        ))}
+                        <div className="h-16"></div>
+                        <button onClick={() => handleNum('0')} className="h-16 rounded-full bg-white/5 hover:bg-white/10 text-2xl font-black text-white flex items-center justify-center transition active:scale-95">0</button>
+                        <button onClick={handleDel} className="h-16 rounded-full bg-red-500/10 hover:bg-red-500/20 text-red-500 flex items-center justify-center transition active:scale-95"><Delete className="w-6 h-6"/></button>
+                    </div>
+                </div>
+            )
+        };
+
+        // --- HAUPT APP KOMPONENTE ---
         function App() {
           const [activeTab, setActiveTab] = useState('eingabe'); 
           
-          // App State
-          const [user, setUser] = useState(null);
+          // Toast System
+          const [toast, setToast] = useState({ message: '', type: '' });
+          const showToast = (msg, type = 'success') => {
+              setToast({ message: msg, type });
+              setTimeout(() => setToast({ message: '', type: '' }), 3000);
+          };
+
+          // Auth & User System
+          const [firebaseUser, setFirebaseUser] = useState(null);
+          const [appUsers, setAppUsers] = useState([]);
+          const [loggedInUser, setLoggedInUser] = useState(null); // { username, role }
           const [authLoading, setAuthLoading] = useState(true);
+          
+          // Login State
+          const [loginStep, setLoginStep] = useState('username'); // 'username' | 'pin'
+          const [loginUsername, setLoginUsername] = useState('');
+          const [loginPin, setLoginPin] = useState('');
+
+          // App Data
           const [workouts, setWorkouts] = useState([]);
           const [standards, setStandards] = useState([]);
-          const [dataLoading, setDataLoading] = useState(true);
+          const [dataLoading, setDataLoading] = useState(false);
           
-          // Tracking State
+          // Tracking
           const [selectedStandard, setSelectedStandard] = useState('');
           const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
           const [muscle, setMuscle] = useState('');
@@ -98,16 +241,16 @@
           const [weight, setWeight] = useState('');
           const [reps, setReps] = useState('');
           
-          // Edit State
+          // Edit
           const [editingSetId, setEditingSetId] = useState(null);
           const [editData, setEditData] = useState({ exercise: '', weight: '', reps: '' });
 
-          // Routine Manager State
+          // Routine Manager
           const [isRoutineModalOpen, setIsRoutineModalOpen] = useState(false);
           const [newRoutineName, setNewRoutineName] = useState('');
           const [newRoutineExercises, setNewRoutineExercises] = useState([]);
           
-          // Timer State (Global & Rest)
+          // Timers
           const [isWorkoutActive, setIsWorkoutActive] = useState(false);
           const [workoutStartTime, setWorkoutStartTime] = useState(null);
           const [elapsedTime, setElapsedTime] = useState(0); 
@@ -115,45 +258,91 @@
           const [restTimeRemaining, setRestTimeRemaining] = useState(0);
           const [isRestTimerActive, setIsRestTimerActive] = useState(false);
           
-          // Calendar & Stats State
+          // Stats & Calendar
           const [currentMonth, setCurrentMonth] = useState(new Date());
           const [selectedCalendarDate, setSelectedCalendarDate] = useState(new Date().toISOString().split('T')[0]);
-          
           const [filterType, setFilterType] = useState('letzte_woche');
           const [customStart, setCustomStart] = useState('');
           const [customEnd, setCustomEnd] = useState('');
-
-          // Heatmap View
           const [bodyView, setBodyView] = useState('front');
 
-          // --- 1. FIREBASE AUTH ---
+          // --- 1. FIREBASE AUTH & USER FETCHING ---
           useEffect(() => {
             if (!auth) return;
             const initAuth = async () => {
               try {
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
                 else await signInAnonymously(auth);
-              } catch (error) { setAuthLoading(false); }
+              } catch (error) { 
+                  showToast("Auth-Fehler: " + error.message, 'error'); 
+                  setAuthLoading(false); 
+              }
             };
             initAuth();
-            const unsubscribe = onAuthStateChanged(auth, (currentUser) => { setUser(currentUser); setAuthLoading(false); });
+            const unsubscribe = onAuthStateChanged(auth, (currentUser) => { 
+                setFirebaseUser(currentUser); 
+            });
             return () => unsubscribe();
           }, []);
 
-          // --- 2. FIREBASE DATA ---
+          // Fetch App Users (Public Data)
           useEffect(() => {
-            if (!user || !db) return;
-            setDataLoading(true);
-            const wRef = collection(db, 'artifacts', appId, 'users', user.uid, 'workouts');
-            const unsubW = onSnapshot(wRef, (snap) => {
-              const fetched = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-              fetched.sort((a, b) => b.timestamp - a.timestamp); 
-              setWorkouts(fetched); setDataLoading(false);
-            });
-            const sRef = collection(db, 'artifacts', appId, 'users', user.uid, 'standards');
-            const unsubS = onSnapshot(sRef, (snap) => setStandards(snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))));
-            return () => { unsubW(); unsubS(); };
-          }, [user]);
+              if (!firebaseUser) return;
+              const usersRef = collection(db, 'artifacts', appId, 'public', 'data', 'app_users');
+              const unsub = onSnapshot(usersRef, (snap) => {
+                  const fetchedUsers = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                  
+                  // Bootstrap Admin AYOUB if DB is entirely empty
+                  if (fetchedUsers.length === 0) {
+                      addDoc(usersRef, { username: 'AYOUB', pin: '0000', role: 'admin' })
+                      .catch(e => console.error("Bootstrap Error", e));
+                  } else {
+                      setAppUsers(fetchedUsers);
+                  }
+                  setAuthLoading(false);
+              }, (err) => {
+                  showToast("Ladefehler Nutzer", 'error');
+                  setAuthLoading(false);
+              });
+              return () => unsub();
+          }, [firebaseUser]);
+
+          // Fetch Personal Data (When logged in)
+          const loadPersonalData = async () => {
+              if (!loggedInUser || !firebaseUser || !db) return;
+              setDataLoading(true);
+              // Rule 1: We use the logged in username as the folder ID to persist across devices
+              const wRef = collection(db, 'artifacts', appId, 'users', loggedInUser.username, 'workouts');
+              const sRef = collection(db, 'artifacts', appId, 'users', loggedInUser.username, 'standards');
+              
+              const unsubW = onSnapshot(wRef, (snap) => {
+                  const fetched = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                  fetched.sort((a, b) => b.timestamp - a.timestamp); 
+                  setWorkouts(fetched); setDataLoading(false);
+              }, (e) => showToast("Ladefehler Workouts", 'error'));
+              
+              const unsubS = onSnapshot(sRef, (snap) => {
+                  setStandards(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+              });
+
+              return () => { unsubW(); unsubS(); };
+          };
+
+          useEffect(() => {
+              let cleanup;
+              if (loggedInUser) loadPersonalData().then(c => cleanup = c);
+              return () => { if (cleanup) cleanup(); };
+          }, [loggedInUser]);
+
+          // --- LOGIN LOGIC ---
+          const processLogin = () => {
+              const u = appUsers.find(u => u.username.toUpperCase() === loginUsername.toUpperCase());
+              if (!u) { showToast('Benutzer nicht gefunden', 'error'); setLoginPin(''); setLoginStep('username'); return; }
+              if (u.pin !== loginPin) { showToast('Falscher PIN', 'error'); setLoginPin(''); return; }
+              
+              setLoggedInUser(u);
+              showToast(`Willkommen, ${u.username}!`);
+          };
 
           // --- 3. TIMERS ---
           useEffect(() => {
@@ -208,7 +397,7 @@
           }, [workouts, filterType, customStart, customEnd]);
 
           const handleSaveSet = async () => {
-            if (!exercise || !reps || !user || !db) return;
+            if (!exercise || !reps || !firebaseUser || !db) return;
             let finalMuscle = muscle;
             if (selectedStandard) {
                 for (const [group, exList] of Object.entries(EXERCISES)) {
@@ -221,205 +410,245 @@
               timestamp: Date.now(), timeString: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
             };
             try {
-                await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'workouts'), newSetData);
+                await addDoc(collection(db, 'artifacts', appId, 'users', loggedInUser.username, 'workouts'), newSetData);
+                showToast("Satz geloggt!");
                 setWeight(''); setReps('');
                 setRestTimeRemaining(restDuration); setIsRestTimerActive(true);
-            } catch (error) { console.error("Save Error", error); }
+            } catch (error) { showToast("Fehler beim Speichern: " + error.message, 'error'); }
           };
 
           const handleDeleteSet = async (id) => {
-              if(!user || !db) return;
-              try { await deleteDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'workouts', id)); } 
-              catch (error) { console.error("Delete Error", error); }
-          }
+              if(!firebaseUser || !db) return;
+              try { 
+                  await deleteDoc(doc(db, 'artifacts', appId, 'users', loggedInUser.username, 'workouts', id)); 
+                  showToast("Satz gelöscht");
+              } catch (error) { showToast("Löschen fehlgeschlagen", 'error'); }
+          };
 
           const handleUpdateSet = async () => {
-              if(!user || !db || !editingSetId) return;
+              if(!firebaseUser || !db || !editingSetId) return;
               try {
-                  await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'workouts', editingSetId), {
+                  await updateDoc(doc(db, 'artifacts', appId, 'users', loggedInUser.username, 'workouts', editingSetId), {
                       exercise: editData.exercise, weight: editData.weight, reps: editData.reps, estimated1RM: calculate1RM(editData.weight, editData.reps)
                   });
                   setEditingSetId(null);
-              } catch (error) { console.error("Update Error", error); }
+                  showToast("Erfolgreich aktualisiert");
+              } catch (error) { showToast("Update fehlgeschlagen", 'error'); }
           };
 
-          // --- UI COMPONENTS ---
-          const GlassCard = ({ children, className = '' }) => (
-            <div className={`bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl rounded-3xl p-5 ${className}`}>{children}</div>
-          );
 
-          const WorkoutItem = ({ w }) => {
-              if (editingSetId === w.id) {
-                  return (
-                      <div className="bg-lime-900/30 p-3 rounded-xl border border-lime-500/50 space-y-3 animate-fade-in no-print">
-                          <div className="flex justify-between items-center text-[10px] text-lime-400 font-bold uppercase mb-2">
-                              <span>Bearbeiten</span><button onClick={() => setEditingSetId(null)}><X className="w-4 h-4 text-gray-400" /></button>
-                          </div>
-                          <select value={editData.exercise} onChange={e => setEditData({...editData, exercise: e.target.value})} className="w-full bg-black/40 text-white rounded-lg p-2 border border-white/20 outline-none text-sm">
-                              {Object.values(EXERCISES).flat().map(ex => <option key={ex} value={ex}>{ex}</option>)}
-                          </select>
-                          <div className="flex gap-2">
-                              <div className="flex-1 relative">
-                                  <span className="absolute top-2.5 left-2 text-[10px] text-gray-500">KG</span>
-                                  <input type="number" value={editData.weight} onChange={e => setEditData({...editData, weight: e.target.value})} className="w-full bg-black/40 text-white rounded-lg p-2 pl-7 border border-white/20 outline-none text-sm font-bold" />
-                              </div>
-                              <div className="flex-1 relative">
-                                  <span className="absolute top-2.5 left-2 text-[10px] text-gray-500">Rep</span>
-                                  <input type="number" value={editData.reps} onChange={e => setEditData({...editData, reps: e.target.value})} className="w-full bg-black/40 text-white rounded-lg p-2 pl-8 border border-white/20 outline-none text-sm font-bold" />
-                              </div>
-                              <button onClick={handleUpdateSet} className="bg-lime-500 text-black p-2 rounded-lg font-bold"><Save className="w-5 h-5" /></button>
-                          </div>
-                      </div>
-                  );
-              }
+          // --- VIEWS ---
+
+          if (authLoading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-10 h-10 text-lime-500 animate-spin" /></div>;
+
+          if (!loggedInUser) {
               return (
-                  <div className="flex justify-between items-center bg-white/5 p-3 rounded-xl border border-white/5 group transition-colors hover:bg-white/10 print-list-item">
-                      <div>
-                          <div className="font-bold text-sm text-gray-100 print-text-black">{w.exercise}</div>
-                          <div className="flex gap-2 items-center text-[10px] print-text-black">
-                              <span className="text-amber-400 print-text-black">{w.setType}</span>
-                              {w.estimated1RM > 0 && <span className="text-gray-500 print-text-black">| 1RM: {w.estimated1RM}kg</span>}
-                          </div>
-                      </div>
-                      <div className="text-right flex items-center gap-3">
-                          <div>
-                              <div className="font-bold text-lime-400 print-text-black">{w.weight}kg × {w.reps}</div>
-                              <div className="text-[10px] text-gray-500 print-text-black">{w.timeString}</div>
-                          </div>
-                          <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity no-print">
-                              <button onClick={() => { setEditingSetId(w.id); setEditData({exercise:w.exercise,weight:w.weight,reps:w.reps}); }} className="text-blue-400 hover:bg-blue-500/20 p-1 rounded"><Edit2 className="w-3.5 h-3.5" /></button>
-                              <button onClick={() => handleDeleteSet(w.id)} className="text-red-500 hover:bg-red-500/20 p-1 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
-                          </div>
-                      </div>
+                  <div className="min-h-screen flex flex-col items-center justify-center p-5 relative overflow-hidden">
+                      <Toast message={toast.message} type={toast.type} />
+                      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-900/30 rounded-full blur-[100px] z-0"></div>
+                      <GlassCard className="w-full max-w-sm relative z-10 !p-8 flex flex-col items-center text-center">
+                          <Activity className="w-12 h-12 text-lime-400 mb-4" />
+                          <h1 className="text-3xl font-black text-white tracking-tight mb-8">Lift<span className="text-lime-400">Pro</span></h1>
+                          
+                          {loginStep === 'username' ? (
+                              <div className="w-full animate-fade-in">
+                                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Benutzername</label>
+                                  <input type="text" value={loginUsername} onChange={e=>setLoginUsername(e.target.value)} placeholder="z.B. AYOUB" className="w-full bg-black/40 text-white rounded-xl p-4 border border-white/20 outline-none text-center font-bold tracking-widest uppercase mb-4" />
+                                  <button onClick={() => { if(loginUsername) setLoginStep('pin') }} className="w-full bg-lime-500 text-black font-bold p-4 rounded-xl shadow-lg active:scale-95 transition">Weiter</button>
+                              </div>
+                          ) : (
+                              <div className="w-full animate-fade-in">
+                                  <div className="flex justify-between items-center mb-4">
+                                      <button onClick={() => { setLoginStep('username'); setLoginPin(''); }}><ChevronLeft className="w-5 h-5 text-gray-400"/></button>
+                                      <span className="font-bold uppercase text-white tracking-widest">{loginUsername}</span>
+                                      <div className="w-5 h-5"></div>
+                                  </div>
+                                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">PIN EINGEBEN</label>
+                                  <Numpad pin={loginPin} setPin={setLoginPin} onSubmit={processLogin} />
+                              </div>
+                          )}
+                      </GlassCard>
+                      <p className="mt-8 text-xs text-gray-500 z-10">Standard Admin-PIN bei Ersteinrichtung: <strong className="text-white">0000</strong></p>
                   </div>
               );
+          }
+
+          const renderTabAdmin = () => {
+              const [newUName, setNewUName] = useState('');
+              const [newUPin, setNewUPin] = useState('');
+
+              const handleAddUser = async () => {
+                  if (!newUName || newUPin.length !== 4) { showToast("Name & 4-stelliger PIN benötigt", "error"); return; }
+                  if (appUsers.some(u => u.username.toUpperCase() === newUName.toUpperCase())) { showToast("Nutzer existiert bereits", "error"); return; }
+                  try {
+                      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'app_users'), { username: newUName.toUpperCase(), pin: newUPin, role: 'user' });
+                      setNewUName(''); setNewUPin(''); showToast("Nutzer angelegt!");
+                  } catch (error) { showToast("Fehler beim Anlegen", "error"); }
+              };
+
+              const handleDeleteUser = async (id, name) => {
+                  if (name === 'AYOUB') { showToast("Admin AYOUB kann nicht gelöscht werden", "error"); return; }
+                  try {
+                      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'app_users', id));
+                      showToast("Nutzer gelöscht");
+                  } catch(e) { showToast("Fehler", "error"); }
+              };
+
+              return (
+                  <div className="space-y-6 pb-32 animate-fade-in">
+                      <div className="flex justify-between items-end mb-4"><div><h2 className="text-2xl font-bold text-white text-blue-400">Admin Panel</h2><p className="text-sm text-gray-400">Nutzerverwaltung für AYOUB.</p></div></div>
+                      
+                      <GlassCard className="border-blue-500/30">
+                          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Neuen Nutzer anlegen</h3>
+                          <div className="flex gap-2 mb-4">
+                              <input type="text" placeholder="Name" value={newUName} onChange={e=>setNewUName(e.target.value)} className="flex-2 bg-black/40 text-white rounded-lg p-3 border border-white/20 outline-none w-full uppercase" />
+                              <input type="number" placeholder="PIN (4)" value={newUPin} onChange={e=>setNewUPin(e.target.value.slice(0,4))} className="flex-1 bg-black/40 text-white rounded-lg p-3 border border-white/20 outline-none w-24 text-center" />
+                          </div>
+                          <button onClick={handleAddUser} className="w-full bg-blue-500 hover:bg-blue-400 text-black font-bold p-3 rounded-lg flex items-center justify-center gap-2 transition"><UserPlus className="w-4 h-4"/> Nutzer anlegen</button>
+                      </GlassCard>
+
+                      <GlassCard>
+                          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Aktive Nutzer ({appUsers.length})</h3>
+                          <div className="space-y-3">
+                              {appUsers.map(u => (
+                                  <div key={u.id} className="flex justify-between items-center bg-white/5 p-3 rounded-xl border border-white/5">
+                                      <div><div className="font-bold text-white">{u.username}</div><div className="text-[10px] text-gray-400 uppercase">{u.role}</div></div>
+                                      <div className="flex items-center gap-4">
+                                          <div className="text-xs font-bold text-gray-500 bg-black/50 px-2 py-1 rounded">PIN: {u.pin}</div>
+                                          {u.username !== 'AYOUB' && <button onClick={() => handleDeleteUser(u.id, u.username)} className="text-red-500 p-2"><Trash2 className="w-4 h-4"/></button>}
+                                      </div>
+                                  </div>
+                              ))}
+                          </div>
+                      </GlassCard>
+                  </div>
+              )
           };
 
-          if (authLoading) return <div className="min-h-screen bg-[#050505] flex items-center justify-center"><Loader2 className="w-8 h-8 text-lime-400 animate-spin" /></div>;
-
-          // --- TABS ---
           const renderTabEingabe = () => {
             const lastPerformance = exercise ? workouts.find(w => w.exercise === exercise && w.date !== date) : null;
             const isRestFinished = restTimeRemaining === 0 && !isRestTimerActive && workouts.some(w => w.date === date);
 
             return (
-              <div className="space-y-6 pb-32 animate-fade-in">
-                <GlassCard className="flex items-center justify-between !p-4 relative overflow-hidden">
-                    <div className="flex items-center gap-4 z-10">
-                        <button onClick={toggleWorkout} className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-all ${isWorkoutActive ? 'bg-red-500/20 text-red-500 border border-red-500/50 hover:bg-red-500/30' : 'bg-lime-500 text-black hover:bg-lime-400'}`}>
-                            {isWorkoutActive ? <StopCircle className="w-6 h-6" /> : <Play className="w-6 h-6 ml-1" />}
-                        </button>
-                        <div>
-                            <h3 className="text-white font-bold text-lg">{isWorkoutActive ? formatTime(elapsedTime) : 'Workout'}</h3>
-                            <p className="text-[10px] text-gray-400 uppercase tracking-wide">{isWorkoutActive ? 'Session aktiv' : 'Starten'}</p>
-                        </div>
-                    </div>
-                    {isWorkoutActive && <div className="absolute -right-10 -top-10 w-32 h-32 bg-lime-500/10 rounded-full blur-2xl animate-pulse pointer-events-none"></div>}
-                </GlassCard>
-
-                <GlassCard className="space-y-5">
-                  <input type="date" value={date} onChange={e => setDate(e.target.value)} className="bg-transparent text-white font-bold text-sm outline-none color-scheme-dark mb-2 block" />
-
-                  <div className="flex items-center justify-between border-b border-white/10 pb-4">
-                      <label className="text-sm font-bold text-white flex items-center gap-2"><Layers className="w-4 h-4 text-lime-400"/> Routine wählen</label>
-                      {selectedStandard && <button onClick={() => {setSelectedStandard(''); setExercise('');}} className="text-[10px] bg-white/10 px-2 py-1 rounded-full text-gray-300">Freestyle</button>}
-                  </div>
-
-                  {!selectedStandard ? (
-                    <div className="space-y-4 animate-fade-in">
-                        <div className="flex overflow-x-auto gap-2 pb-2 hide-scrollbar">
-                            {standards.map(s => <button key={s.id} onClick={() => {setSelectedStandard(s.id); setMuscle('');}} className="whitespace-nowrap px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-sm hover:bg-white/10 transition text-white">{s.name}</button>)}
-                        </div>
-                        <div className="space-y-2 pt-2">
-                            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Oder: Freestyle</label>
-                            <div className="flex flex-wrap gap-2">
-                            {MUSCLE_GROUPS.map(m => <button key={m} onClick={() => { setMuscle(m); setExercise(''); setSelectedStandard(''); }} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition border ${muscle === m ? 'bg-lime-500/20 border-lime-500/50 text-lime-400' : 'bg-transparent border-white/10 text-gray-400'}`}>{m}</button>)}
+              <PullToRefresh onRefresh={loadPersonalData}>
+                  <div className="space-y-6 pb-32 animate-fade-in">
+                    <GlassCard className="flex items-center justify-between !p-4 relative overflow-hidden">
+                        <div className="flex items-center gap-4 z-10">
+                            <button onClick={toggleWorkout} className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-all ${isWorkoutActive ? 'bg-red-500/20 text-red-500 border border-red-500/50 hover:bg-red-500/30' : 'bg-lime-500 text-black hover:bg-lime-400'}`}>
+                                {isWorkoutActive ? <StopCircle className="w-6 h-6" /> : <Play className="w-6 h-6 ml-1" />}
+                            </button>
+                            <div>
+                                <h3 className="text-white font-bold text-lg">{isWorkoutActive ? formatTime(elapsedTime) : 'Workout'}</h3>
+                                <p className="text-[10px] text-gray-400 uppercase tracking-wide">{isWorkoutActive ? 'Session aktiv' : 'Starten'}</p>
                             </div>
                         </div>
-                        {muscle && (
-                            <div className="space-y-2 animate-fade-in">
-                            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Übung</label>
+                        {isWorkoutActive && <div className="absolute -right-10 -top-10 w-32 h-32 bg-lime-500/10 rounded-full blur-2xl animate-pulse pointer-events-none"></div>}
+                    </GlassCard>
+
+                    <GlassCard className="space-y-5">
+                      <input type="date" value={date} onChange={e => setDate(e.target.value)} className="bg-transparent text-white font-bold text-sm outline-none color-scheme-dark mb-2 block" />
+
+                      <div className="flex items-center justify-between border-b border-white/10 pb-4">
+                          <label className="text-sm font-bold text-white flex items-center gap-2"><Layers className="w-4 h-4 text-lime-400"/> Routine wählen</label>
+                          {selectedStandard && <button onClick={() => {setSelectedStandard(''); setExercise('');}} className="text-[10px] bg-white/10 px-2 py-1 rounded-full text-gray-300">Freestyle</button>}
+                      </div>
+
+                      {!selectedStandard ? (
+                        <div className="space-y-4 animate-fade-in">
+                            <div className="flex overflow-x-auto gap-2 pb-2 hide-scrollbar">
+                                {standards.map(s => <button key={s.id} onClick={() => {setSelectedStandard(s.id); setMuscle('');}} className="whitespace-nowrap px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-sm hover:bg-white/10 transition text-white">{s.name}</button>)}
+                            </div>
+                            <div className="space-y-2 pt-2">
+                                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Oder: Freestyle</label>
+                                <div className="flex flex-wrap gap-2">
+                                {MUSCLE_GROUPS.map(m => <button key={m} onClick={() => { setMuscle(m); setExercise(''); setSelectedStandard(''); }} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition border ${muscle === m ? 'bg-lime-500/20 border-lime-500/50 text-lime-400' : 'bg-transparent border-white/10 text-gray-400'}`}>{m}</button>)}
+                                </div>
+                            </div>
+                            {muscle && (
+                                <div className="space-y-2 animate-fade-in">
+                                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Übung</label>
+                                <select value={exercise} onChange={e => setExercise(e.target.value)} className="w-full bg-black/40 text-white rounded-xl p-3 border border-white/10 outline-none">
+                                    <option value="">Wähle...</option>
+                                    {EXERCISES[muscle].map(ex => <option key={ex} value={ex}>{ex}</option>)}
+                                </select>
+                                </div>
+                            )}
+                        </div>
+                      ) : (
+                         <div className="space-y-4 animate-fade-in">
+                            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Übung aus <span className="text-lime-400">{standards.find(s=>s.id===selectedStandard)?.name}</span></label>
                             <select value={exercise} onChange={e => setExercise(e.target.value)} className="w-full bg-black/40 text-white rounded-xl p-3 border border-white/10 outline-none">
                                 <option value="">Wähle...</option>
-                                {EXERCISES[muscle].map(ex => <option key={ex} value={ex}>{ex}</option>)}
+                                {standards.find(s=>s.id===selectedStandard)?.exercises.map(ex => <option key={ex} value={ex}>{ex}</option>)}
                             </select>
-                            </div>
-                        )}
-                    </div>
-                  ) : (
-                     <div className="space-y-4 animate-fade-in">
-                        <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Übung aus <span className="text-lime-400">{standards.find(s=>s.id===selectedStandard)?.name}</span></label>
-                        <select value={exercise} onChange={e => setExercise(e.target.value)} className="w-full bg-black/40 text-white rounded-xl p-3 border border-white/10 outline-none">
-                            <option value="">Wähle...</option>
-                            {standards.find(s=>s.id===selectedStandard)?.exercises.map(ex => <option key={ex} value={ex}>{ex}</option>)}
-                        </select>
-                    </div>
-                  )}
+                        </div>
+                      )}
 
-                  {exercise && lastPerformance && (
-                      <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-3 flex items-start gap-3 animate-fade-in">
-                          <Zap className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
-                          <div>
-                              <h4 className="text-[10px] font-bold text-blue-400 uppercase tracking-wider mb-1">Ziel (Overload)</h4>
-                              <p className="text-xs text-blue-200">Letztes Mal: <strong className="text-white">{lastPerformance.weight}kg × {lastPerformance.reps}</strong></p>
+                      {exercise && lastPerformance && (
+                          <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-3 flex items-start gap-3 animate-fade-in">
+                              <Zap className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
+                              <div>
+                                  <h4 className="text-[10px] font-bold text-blue-400 uppercase tracking-wider mb-1">Ziel (Overload)</h4>
+                                  <p className="text-xs text-blue-200">Letztes Mal: <strong className="text-white">{lastPerformance.weight}kg × {lastPerformance.reps}</strong></p>
+                              </div>
                           </div>
-                      </div>
-                  )}
+                      )}
 
-                  {exercise && (
-                    <div className="pt-2 border-t border-white/10 animate-fade-in">
-                      <div className="flex gap-2 overflow-x-auto hide-scrollbar mb-4">
-                          {SET_TYPES.map(st => <button key={st} onClick={() => setSetType(st)} className={`whitespace-nowrap px-3 py-1 rounded-lg text-xs transition border ${setType === st ? 'bg-amber-500/20 border-amber-500/50 text-amber-400' : 'bg-transparent border-white/10 text-gray-400'}`}>{st}</button>)}
-                      </div>
-                      <div className="grid grid-cols-3 gap-3">
-                        <div className="relative">
-                          <span className="absolute top-2 left-3 text-[10px] text-gray-500 uppercase font-bold">KG</span>
-                          <input type="number" value={weight} onChange={e => setWeight(e.target.value)} className="w-full bg-black/40 text-white rounded-xl p-3 pt-6 border border-white/10 outline-none text-xl font-bold text-center" />
-                        </div>
-                        <div className="relative">
-                          <span className="absolute top-2 left-3 text-[10px] text-gray-500 uppercase font-bold">Reps</span>
-                          <input type="number" value={reps} onChange={e => setReps(e.target.value)} className="w-full bg-black/40 text-white rounded-xl p-3 pt-6 border border-white/10 outline-none text-xl font-bold text-center" />
-                        </div>
-                        <button onClick={handleSaveSet} disabled={!exercise || !reps} className="bg-lime-500 hover:bg-lime-400 disabled:opacity-50 text-black font-bold rounded-xl shadow-[0_0_15px_rgba(132,204,22,0.3)] flex flex-col items-center justify-center transition-all active:scale-95">
-                          <Check className="w-6 h-6" /><span className="text-[9px] uppercase tracking-wide opacity-80 mt-1">Loggen</span>
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </GlassCard>
-
-                {(isRestTimerActive || restTimeRemaining > 0 || isRestFinished) && (
-                    <GlassCard className={`flex flex-col items-center transition-all duration-500 ${isRestFinished ? 'border-lime-500/50 bg-lime-500/10 shadow-[0_0_30px_rgba(132,204,22,0.2)]' : ''}`}>
-                        <div className="flex w-full justify-between items-center mb-4 border-b border-white/10 pb-3">
-                            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2"><Clock className="w-4 h-4"/> Pausen-Manager</h3>
-                            <div className="flex gap-2">
-                                {[60, 90, 120].map(secs => (
-                                    <button key={secs} onClick={() => { setRestDuration(secs); setRestTimeRemaining(secs); setIsRestTimerActive(true); }} className={`px-2 py-1 text-[10px] font-bold rounded-md border ${restDuration === secs ? 'bg-amber-500/20 text-amber-400 border-amber-500/50' : 'bg-transparent text-gray-500 border-white/10 hover:text-white'}`}>{secs}s</button>
-                                ))}
+                      {exercise && (
+                        <div className="pt-2 border-t border-white/10 animate-fade-in">
+                          <div className="flex gap-2 overflow-x-auto hide-scrollbar mb-4">
+                              {SET_TYPES.map(st => <button key={st} onClick={() => setSetType(st)} className={`whitespace-nowrap px-3 py-1 rounded-lg text-xs transition border ${setType === st ? 'bg-amber-500/20 border-amber-500/50 text-amber-400' : 'bg-transparent border-white/10 text-gray-400'}`}>{st}</button>)}
+                          </div>
+                          <div className="grid grid-cols-3 gap-3">
+                            <div className="relative">
+                              <span className="absolute top-2 left-3 text-[10px] text-gray-500 uppercase font-bold">KG</span>
+                              <input type="number" value={weight} onChange={e => setWeight(e.target.value)} className="w-full bg-black/40 text-white rounded-xl p-3 pt-6 border border-white/10 outline-none text-xl font-bold text-center" />
                             </div>
-                        </div>
-                        <div className="flex items-center gap-8 py-2">
-                            <button onClick={() => { setRestTimeRemaining(restDuration); setIsRestTimerActive(false); }} className="p-3 bg-white/5 rounded-full hover:bg-white/10 text-gray-400 transition"><RotateCcw className="w-5 h-5" /></button>
-                            <div className="relative flex items-center justify-center">
-                                <div className={`text-5xl font-black tabular-nums transition-colors ${isRestFinished ? 'text-lime-400 animate-pulse' : 'text-white'}`}>{formatTime(restTimeRemaining)}</div>
-                                {isRestFinished && <div className="absolute -bottom-6 text-xs text-lime-400 font-bold uppercase tracking-widest whitespace-nowrap">Go! Nächster Satz</div>}
+                            <div className="relative">
+                              <span className="absolute top-2 left-3 text-[10px] text-gray-500 uppercase font-bold">Reps</span>
+                              <input type="number" value={reps} onChange={e => setReps(e.target.value)} className="w-full bg-black/40 text-white rounded-xl p-3 pt-6 border border-white/10 outline-none text-xl font-bold text-center" />
                             </div>
-                            <button onClick={() => setIsRestTimerActive(!isRestTimerActive)} className={`p-4 rounded-full shadow-lg transition ${isRestTimerActive ? 'bg-amber-500 text-black hover:bg-amber-400' : 'bg-lime-500 text-black hover:bg-lime-400'}`}>
-                                {isRestTimerActive ? <Pause className="w-6 h-6" fill="currentColor"/> : <Play className="w-6 h-6 ml-1" fill="currentColor"/>}
+                            <button onClick={handleSaveSet} disabled={!exercise || !reps} className="bg-lime-500 hover:bg-lime-400 disabled:opacity-50 text-black font-bold rounded-xl shadow-[0_0_15px_rgba(132,204,22,0.3)] flex flex-col items-center justify-center transition-all active:scale-95">
+                              <Check className="w-6 h-6" /><span className="text-[9px] uppercase tracking-wide opacity-80 mt-1">Loggen</span>
                             </button>
+                          </div>
                         </div>
+                      )}
                     </GlassCard>
-                )}
 
-                {workouts.filter(w => w.date === date).length > 0 && (
-                    <GlassCard>
-                      <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">Logs (Heute)</h3>
-                      <div className="space-y-2">
-                        {workouts.filter(w => w.date === date).map(w => <WorkoutItem key={w.id} w={w} />)}
-                      </div>
-                    </GlassCard>
-                )}
-              </div>
+                    {(isRestTimerActive || restTimeRemaining > 0 || isRestFinished) && (
+                        <GlassCard className={`flex flex-col items-center transition-all duration-500 ${isRestFinished ? 'border-lime-500/50 bg-lime-500/10 shadow-[0_0_30px_rgba(132,204,22,0.2)]' : ''}`}>
+                            <div className="flex w-full justify-between items-center mb-4 border-b border-white/10 pb-3">
+                                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2"><Clock className="w-4 h-4"/> Pausen-Manager</h3>
+                                <div className="flex gap-2">
+                                    {[60, 90, 120].map(secs => (
+                                        <button key={secs} onClick={() => { setRestDuration(secs); setRestTimeRemaining(secs); setIsRestTimerActive(true); }} className={`px-2 py-1 text-[10px] font-bold rounded-md border ${restDuration === secs ? 'bg-amber-500/20 text-amber-400 border-amber-500/50' : 'bg-transparent text-gray-500 border-white/10 hover:text-white'}`}>{secs}s</button>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-8 py-2">
+                                <button onClick={() => { setRestTimeRemaining(restDuration); setIsRestTimerActive(false); }} className="p-3 bg-white/5 rounded-full hover:bg-white/10 text-gray-400 transition"><RotateCcw className="w-5 h-5" /></button>
+                                <div className="relative flex items-center justify-center">
+                                    <div className={`text-5xl font-black tabular-nums transition-colors ${isRestFinished ? 'text-lime-400 animate-pulse' : 'text-white'}`}>{formatTime(restTimeRemaining)}</div>
+                                    {isRestFinished && <div className="absolute -bottom-6 text-xs text-lime-400 font-bold uppercase tracking-widest whitespace-nowrap">Go! Nächster Satz</div>}
+                                </div>
+                                <button onClick={() => setIsRestTimerActive(!isRestTimerActive)} className={`p-4 rounded-full shadow-lg transition ${isRestTimerActive ? 'bg-amber-500 text-black hover:bg-amber-400' : 'bg-lime-500 text-black hover:bg-lime-400'}`}>
+                                    {isRestTimerActive ? <Pause className="w-6 h-6" fill="currentColor"/> : <Play className="w-6 h-6 ml-1" fill="currentColor"/>}
+                                </button>
+                            </div>
+                        </GlassCard>
+                    )}
+
+                    {workouts.filter(w => w.date === date).length > 0 && (
+                        <GlassCard>
+                          <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">Logs (Heute)</h3>
+                          <div className="space-y-2">
+                            {workouts.filter(w => w.date === date).map(w => <WorkoutItem key={w.id} w={w} editingSetId={editingSetId} editData={editData} setEditingSetId={setEditingSetId} setEditData={setEditData} handleUpdateSet={handleUpdateSet} handleDeleteSet={handleDeleteSet}/>)}
+                          </div>
+                        </GlassCard>
+                    )}
+                  </div>
+              </PullToRefresh>
             );
           };
 
@@ -439,147 +668,144 @@
               const m = { brust: getMuscleState('Brust'), ruecken: getMuscleState('Rücken'), schultern: getMuscleState('Schultern'), arme: getMuscleState('Arme'), core: getMuscleState('Core'), beine: getMuscleState('Beine') };
 
               return (
-                  <div className="space-y-6 pb-32 animate-fade-in">
-                      <div className="flex justify-between items-center mb-4">
-                          <div><h2 className="text-2xl font-bold text-white">Anatomie</h2><p className="text-sm text-gray-400">Medizinische Heatmap (72h).</p></div>
-                          <button onClick={() => setBodyView(bodyView === 'front' ? 'back' : 'front')} className="flex items-center gap-2 bg-white/10 px-4 py-2 rounded-full text-xs font-bold text-white border border-white/20 hover:bg-white/20 transition shadow-lg">
-                              <RefreshCcw className="w-4 h-4" /> {bodyView === 'front' ? 'Rückenansicht' : 'Frontansicht'}
-                          </button>
+                  <PullToRefresh onRefresh={loadPersonalData}>
+                      <div className="space-y-6 pb-32 animate-fade-in">
+                          <div className="flex justify-between items-center mb-4">
+                              <div><h2 className="text-2xl font-bold text-white">Anatomie</h2><p className="text-sm text-gray-400">Medizinische Heatmap (72h).</p></div>
+                              <button onClick={() => setBodyView(bodyView === 'front' ? 'back' : 'front')} className="flex items-center gap-2 bg-white/10 px-4 py-2 rounded-full text-xs font-bold text-white border border-white/20 hover:bg-white/20 transition shadow-lg">
+                                  <RefreshCcw className="w-4 h-4" /> {bodyView === 'front' ? 'Rückenansicht' : 'Frontansicht'}
+                              </button>
+                          </div>
+
+                          <GlassCard className="flex flex-col items-center justify-center py-8 relative overflow-hidden">
+                              <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/50 pointer-events-none rounded-3xl"></div>
+                              <div className="w-full max-w-[320px] relative z-10">
+                                  <svg viewBox="0 0 400 800" className="w-full h-auto drop-shadow-[0_10px_25px_rgba(0,0,0,0.5)]">
+                                      <defs>
+                                          <filter id="glow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="6" result="blur" /><feComposite in="SourceGraphic" in2="blur" operator="over" /></filter>
+                                          <pattern id="striation" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(25)"><line x1="0" y1="0" x2="0" y2="10" stroke="rgba(0,0,0,0.2)" strokeWidth="1"/></pattern>
+                                      </defs>
+                                      <path d="M 170 50 C 170 10, 230 10, 230 50 C 230 90, 215 110, 200 110 C 185 110, 170 90, 170 50 Z" fill="#2a2a2a" stroke="#444" strokeWidth="2" />
+                                      <path d="M 185 100 L 215 100 L 230 130 C 280 130, 310 150, 330 190 L 360 380 L 330 380 L 300 240 L 280 430 L 230 430 L 230 750 L 190 750 L 170 430 L 120 430 L 100 240 L 70 380 L 40 380 L 70 190 C 90 150, 120 130, 170 130 Z" fill="#1f1f1f" stroke="#333" strokeWidth="2" />
+
+                                      {bodyView === 'front' ? (
+                                          <g id="muscles-front-hd">
+                                              <path d="M 198 140 C 140 140, 120 155, 110 185 C 115 210, 145 225, 195 220 Z" fill={m.brust.fill} stroke={m.brust.stroke} strokeWidth="2" filter="url(#glow)" />
+                                              <path d="M 202 140 C 260 140, 280 155, 290 185 C 285 210, 255 225, 205 220 Z" fill={m.brust.fill} stroke={m.brust.stroke} strokeWidth="2" filter="url(#glow)" />
+                                              <path d="M 198 140 C 140 140, 120 155, 110 185 C 115 210, 145 225, 195 220 Z" fill="url(#striation)" pointerEvents="none" />
+                                              <path d="M 202 140 C 260 140, 280 155, 290 185 C 285 210, 255 225, 205 220 Z" fill="url(#striation)" pointerEvents="none" />
+                                              <path d="M 195 230 C 160 235, 155 260, 150 360 C 160 380, 200 390, 200 390 C 200 390, 240 380, 250 360 C 245 260, 240 235, 205 230 Z" fill={m.core.fill} stroke={m.core.stroke} strokeWidth="2" filter="url(#glow)" />
+                                              <g stroke="rgba(0,0,0,0.4)" strokeWidth="3" fill="none"><line x1="200" y1="230" x2="200" y2="385" /><path d="M 155 270 Q 200 280 245 270" /><path d="M 152 310 Q 200 320 248 310" /><path d="M 150 350 Q 200 360 250 350" /></g>
+                                              <path d="M 148 240 C 130 270, 130 330, 148 360 Z" fill={m.core.fill} stroke={m.core.stroke} strokeWidth="1.5" />
+                                              <path d="M 252 240 C 270 270, 270 330, 252 360 Z" fill={m.core.fill} stroke={m.core.stroke} strokeWidth="1.5" />
+                                              <path d="M 115 140 C 85 145, 75 160, 75 210 C 95 215, 115 200, 115 185 Z" fill={m.schultern.fill} stroke={m.schultern.stroke} strokeWidth="2" filter="url(#glow)" />
+                                              <path d="M 285 140 C 315 145, 325 160, 325 210 C 305 215, 285 200, 285 185 Z" fill={m.schultern.fill} stroke={m.schultern.stroke} strokeWidth="2" filter="url(#glow)" />
+                                              <path d="M 75 210 C 60 230, 60 280, 75 310 C 90 290, 95 230, 90 205 Z" fill={m.arme.fill} stroke={m.arme.stroke} strokeWidth="2" filter="url(#glow)" />
+                                              <path d="M 325 210 C 340 230, 340 280, 325 310 C 310 290, 305 230, 310 205 Z" fill={m.arme.fill} stroke={m.arme.stroke} strokeWidth="2" filter="url(#glow)" />
+                                              <path d="M 72 315 C 50 340, 50 410, 65 420 C 80 410, 85 340, 85 310 Z" fill={m.arme.fill} stroke={m.arme.stroke} strokeWidth="2" />
+                                              <path d="M 328 315 C 350 340, 350 410, 335 420 C 320 410, 315 340, 315 310 Z" fill={m.arme.fill} stroke={m.arme.stroke} strokeWidth="2" />
+                                              <path d="M 195 395 C 160 395, 130 440, 130 550 C 145 580, 175 570, 185 540 C 190 500, 195 440, 195 395 Z" fill={m.beine.fill} stroke={m.beine.stroke} strokeWidth="2" filter="url(#glow)" />
+                                              <path d="M 205 395 C 240 395, 270 440, 270 550 C 255 580, 225 570, 215 540 C 210 500, 205 440, 205 395 Z" fill={m.beine.fill} stroke={m.beine.stroke} strokeWidth="2" filter="url(#glow)" />
+                                              <path d="M 160 410 C 170 480, 170 520, 165 560" stroke="rgba(0,0,0,0.3)" strokeWidth="2" fill="none" />
+                                              <path d="M 240 410 C 230 480, 230 520, 235 560" stroke="rgba(0,0,0,0.3)" strokeWidth="2" fill="none" />
+                                              <path d="M 135 590 C 115 640, 120 720, 140 740 C 155 720, 160 640, 170 590 Z" fill={m.beine.fill} stroke={m.beine.stroke} strokeWidth="2" />
+                                              <path d="M 265 590 C 285 640, 280 720, 260 740 C 245 720, 240 640, 230 590 Z" fill={m.beine.fill} stroke={m.beine.stroke} strokeWidth="2" />
+                                          </g>
+                                      ) : (
+                                          <g id="muscles-back-hd">
+                                              <path d="M 200 110 C 160 120, 140 140, 130 150 L 200 230 L 270 150 C 260 140, 240 120, 200 110 Z" fill={m.ruecken.fill} stroke={m.ruecken.stroke} strokeWidth="2" filter="url(#glow)" />
+                                              <path d="M 130 155 C 110 180, 120 280, 160 330 L 200 240 Z" fill={m.ruecken.fill} stroke={m.ruecken.stroke} strokeWidth="2" filter="url(#glow)" />
+                                              <path d="M 270 155 C 290 180, 280 280, 240 330 L 200 240 Z" fill={m.ruecken.fill} stroke={m.ruecken.stroke} strokeWidth="2" filter="url(#glow)" />
+                                              <path d="M 165 330 C 180 370, 190 390, 200 390 C 210 390, 220 370, 235 330 L 200 250 Z" fill={m.ruecken.fill} stroke={m.ruecken.stroke} strokeWidth="2" filter="url(#glow)" />
+                                              <path d="M 125 140 C 90 140, 80 160, 80 210 C 100 205, 115 190, 125 155 Z" fill={m.schultern.fill} stroke={m.schultern.stroke} strokeWidth="2" filter="url(#glow)" />
+                                              <path d="M 275 140 C 310 140, 320 160, 320 210 C 300 205, 285 190, 275 155 Z" fill={m.schultern.fill} stroke={m.schultern.stroke} strokeWidth="2" filter="url(#glow)" />
+                                              <path d="M 82 205 C 65 230, 60 280, 75 310 C 95 290, 95 230, 92 205 Z" fill={m.arme.fill} stroke={m.arme.stroke} strokeWidth="2" filter="url(#glow)" />
+                                              <path d="M 318 205 C 335 230, 340 280, 325 310 C 305 290, 305 230, 308 205 Z" fill={m.arme.fill} stroke={m.arme.stroke} strokeWidth="2" filter="url(#glow)" />
+                                              <path d="M 72 315 C 50 340, 50 410, 65 420 C 80 410, 85 340, 85 310 Z" fill={m.arme.fill} stroke={m.arme.stroke} strokeWidth="2" />
+                                              <path d="M 328 315 C 350 340, 350 410, 335 420 C 320 410, 315 340, 315 310 Z" fill={m.arme.fill} stroke={m.arme.stroke} strokeWidth="2" />
+                                              <path d="M 198 390 C 140 390, 125 430, 130 480 C 160 500, 190 470, 198 450 Z" fill={m.beine.fill} stroke={m.beine.stroke} strokeWidth="2" filter="url(#glow)" />
+                                              <path d="M 202 390 C 260 390, 275 430, 270 480 C 240 500, 210 470, 202 450 Z" fill={m.beine.fill} stroke={m.beine.stroke} strokeWidth="2" filter="url(#glow)" />
+                                              <path d="M 135 480 C 130 520, 135 560, 155 580 C 175 560, 185 520, 185 460 C 160 485, 140 485, 135 480 Z" fill={m.beine.fill} stroke={m.beine.stroke} strokeWidth="2" />
+                                              <path d="M 265 480 C 270 520, 265 560, 245 580 C 225 560, 215 520, 215 460 C 240 485, 260 485, 265 480 Z" fill={m.beine.fill} stroke={m.beine.stroke} strokeWidth="2" />
+                                              <path d="M 145 590 C 115 630, 130 700, 150 730 C 170 700, 180 630, 165 590 Z" fill={m.beine.fill} stroke={m.beine.stroke} strokeWidth="2" />
+                                              <path d="M 255 590 C 285 630, 270 700, 250 730 C 230 700, 220 630, 235 590 Z" fill={m.beine.fill} stroke={m.beine.stroke} strokeWidth="2" />
+                                          </g>
+                                      )}
+                                  </svg>
+                              </div>
+                              <div className="absolute top-4 left-4 space-y-1 z-20">
+                                  {[{name: 'Brust', s: m.brust}, {name: 'Rücken', s: m.ruecken}, {name: 'Arme', s: m.arme}].map(item => (
+                                      <div key={item.name} className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-wider bg-black/60 px-2 py-1 rounded backdrop-blur-sm border border-white/10">
+                                          <div className="w-2 h-2 rounded-full" style={{backgroundColor: item.s.hex}}></div><span className="text-gray-300 w-12">{item.name}</span><span style={{color: item.s.hex}}>{item.s.label.split(' ')[0]}</span>
+                                      </div>
+                                  ))}
+                              </div>
+                              <div className="absolute top-4 right-4 space-y-1 z-20">
+                                  {[{name: 'Beine', s: m.beine}, {name: 'Schulter', s: m.schultern}, {name: 'Core', s: m.core}].map(item => (
+                                      <div key={item.name} className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-wider bg-black/60 px-2 py-1 rounded backdrop-blur-sm border border-white/10">
+                                          <span style={{color: item.s.hex}}>{item.s.label.split(' ')[0]}</span><span className="text-gray-300 w-12 text-right">{item.name}</span><div className="w-2 h-2 rounded-full" style={{backgroundColor: item.s.hex}}></div>
+                                      </div>
+                                  ))}
+                              </div>
+                          </GlassCard>
                       </div>
-
-                      <GlassCard className="flex flex-col items-center justify-center py-8 relative overflow-hidden">
-                          <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/50 pointer-events-none rounded-3xl"></div>
-                          <div className="w-full max-w-[320px] relative z-10">
-                              <svg viewBox="0 0 400 800" className="w-full h-auto drop-shadow-[0_10px_25px_rgba(0,0,0,0.5)]">
-                                  <defs>
-                                      <filter id="glow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="6" result="blur" /><feComposite in="SourceGraphic" in2="blur" operator="over" /></filter>
-                                      <pattern id="striation" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(25)"><line x1="0" y1="0" x2="0" y2="10" stroke="rgba(0,0,0,0.2)" strokeWidth="1"/></pattern>
-                                  </defs>
-
-                                  <path d="M 170 50 C 170 10, 230 10, 230 50 C 230 90, 215 110, 200 110 C 185 110, 170 90, 170 50 Z" fill="#2a2a2a" stroke="#444" strokeWidth="2" />
-                                  <path d="M 185 100 L 215 100 L 230 130 C 280 130, 310 150, 330 190 L 360 380 L 330 380 L 300 240 L 280 430 L 230 430 L 230 750 L 190 750 L 170 430 L 120 430 L 100 240 L 70 380 L 40 380 L 70 190 C 90 150, 120 130, 170 130 Z" fill="#1f1f1f" stroke="#333" strokeWidth="2" />
-
-                                  {bodyView === 'front' ? (
-                                      <g id="muscles-front-hd">
-                                          {/* Brust */}
-                                          <path d="M 198 140 C 140 140, 120 155, 110 185 C 115 210, 145 225, 195 220 Z" fill={m.brust.fill} stroke={m.brust.stroke} strokeWidth="2" filter="url(#glow)" />
-                                          <path d="M 202 140 C 260 140, 280 155, 290 185 C 285 210, 255 225, 205 220 Z" fill={m.brust.fill} stroke={m.brust.stroke} strokeWidth="2" filter="url(#glow)" />
-                                          <path d="M 198 140 C 140 140, 120 155, 110 185 C 115 210, 145 225, 195 220 Z" fill="url(#striation)" pointerEvents="none" />
-                                          <path d="M 202 140 C 260 140, 280 155, 290 185 C 285 210, 255 225, 205 220 Z" fill="url(#striation)" pointerEvents="none" />
-                                          {/* Core */}
-                                          <path d="M 195 230 C 160 235, 155 260, 150 360 C 160 380, 200 390, 200 390 C 200 390, 240 380, 250 360 C 245 260, 240 235, 205 230 Z" fill={m.core.fill} stroke={m.core.stroke} strokeWidth="2" filter="url(#glow)" />
-                                          <g stroke="rgba(0,0,0,0.4)" strokeWidth="3" fill="none"><line x1="200" y1="230" x2="200" y2="385" /><path d="M 155 270 Q 200 280 245 270" /><path d="M 152 310 Q 200 320 248 310" /><path d="M 150 350 Q 200 360 250 350" /></g>
-                                          <path d="M 148 240 C 130 270, 130 330, 148 360 Z" fill={m.core.fill} stroke={m.core.stroke} strokeWidth="1.5" />
-                                          <path d="M 252 240 C 270 270, 270 330, 252 360 Z" fill={m.core.fill} stroke={m.core.stroke} strokeWidth="1.5" />
-                                          {/* Schultern */}
-                                          <path d="M 115 140 C 85 145, 75 160, 75 210 C 95 215, 115 200, 115 185 Z" fill={m.schultern.fill} stroke={m.schultern.stroke} strokeWidth="2" filter="url(#glow)" />
-                                          <path d="M 285 140 C 315 145, 325 160, 325 210 C 305 215, 285 200, 285 185 Z" fill={m.schultern.fill} stroke={m.schultern.stroke} strokeWidth="2" filter="url(#glow)" />
-                                          {/* Arme */}
-                                          <path d="M 75 210 C 60 230, 60 280, 75 310 C 90 290, 95 230, 90 205 Z" fill={m.arme.fill} stroke={m.arme.stroke} strokeWidth="2" filter="url(#glow)" />
-                                          <path d="M 325 210 C 340 230, 340 280, 325 310 C 310 290, 305 230, 310 205 Z" fill={m.arme.fill} stroke={m.arme.stroke} strokeWidth="2" filter="url(#glow)" />
-                                          <path d="M 72 315 C 50 340, 50 410, 65 420 C 80 410, 85 340, 85 310 Z" fill={m.arme.fill} stroke={m.arme.stroke} strokeWidth="2" />
-                                          <path d="M 328 315 C 350 340, 350 410, 335 420 C 320 410, 315 340, 315 310 Z" fill={m.arme.fill} stroke={m.arme.stroke} strokeWidth="2" />
-                                          {/* Beine */}
-                                          <path d="M 195 395 C 160 395, 130 440, 130 550 C 145 580, 175 570, 185 540 C 190 500, 195 440, 195 395 Z" fill={m.beine.fill} stroke={m.beine.stroke} strokeWidth="2" filter="url(#glow)" />
-                                          <path d="M 205 395 C 240 395, 270 440, 270 550 C 255 580, 225 570, 215 540 C 210 500, 205 440, 205 395 Z" fill={m.beine.fill} stroke={m.beine.stroke} strokeWidth="2" filter="url(#glow)" />
-                                          <path d="M 160 410 C 170 480, 170 520, 165 560" stroke="rgba(0,0,0,0.3)" strokeWidth="2" fill="none" />
-                                          <path d="M 240 410 C 230 480, 230 520, 235 560" stroke="rgba(0,0,0,0.3)" strokeWidth="2" fill="none" />
-                                          <path d="M 135 590 C 115 640, 120 720, 140 740 C 155 720, 160 640, 170 590 Z" fill={m.beine.fill} stroke={m.beine.stroke} strokeWidth="2" />
-                                          <path d="M 265 590 C 285 640, 280 720, 260 740 C 245 720, 240 640, 230 590 Z" fill={m.beine.fill} stroke={m.beine.stroke} strokeWidth="2" />
-                                      </g>
-                                  ) : (
-                                      <g id="muscles-back-hd">
-                                          {/* Rücken */}
-                                          <path d="M 200 110 C 160 120, 140 140, 130 150 L 200 230 L 270 150 C 260 140, 240 120, 200 110 Z" fill={m.ruecken.fill} stroke={m.ruecken.stroke} strokeWidth="2" filter="url(#glow)" />
-                                          <path d="M 130 155 C 110 180, 120 280, 160 330 L 200 240 Z" fill={m.ruecken.fill} stroke={m.ruecken.stroke} strokeWidth="2" filter="url(#glow)" />
-                                          <path d="M 270 155 C 290 180, 280 280, 240 330 L 200 240 Z" fill={m.ruecken.fill} stroke={m.ruecken.stroke} strokeWidth="2" filter="url(#glow)" />
-                                          <path d="M 165 330 C 180 370, 190 390, 200 390 C 210 390, 220 370, 235 330 L 200 250 Z" fill={m.ruecken.fill} stroke={m.ruecken.stroke} strokeWidth="2" filter="url(#glow)" />
-                                          {/* Schultern */}
-                                          <path d="M 125 140 C 90 140, 80 160, 80 210 C 100 205, 115 190, 125 155 Z" fill={m.schultern.fill} stroke={m.schultern.stroke} strokeWidth="2" filter="url(#glow)" />
-                                          <path d="M 275 140 C 310 140, 320 160, 320 210 C 300 205, 285 190, 275 155 Z" fill={m.schultern.fill} stroke={m.schultern.stroke} strokeWidth="2" filter="url(#glow)" />
-                                          {/* Arme */}
-                                          <path d="M 82 205 C 65 230, 60 280, 75 310 C 95 290, 95 230, 92 205 Z" fill={m.arme.fill} stroke={m.arme.stroke} strokeWidth="2" filter="url(#glow)" />
-                                          <path d="M 318 205 C 335 230, 340 280, 325 310 C 305 290, 305 230, 308 205 Z" fill={m.arme.fill} stroke={m.arme.stroke} strokeWidth="2" filter="url(#glow)" />
-                                          <path d="M 72 315 C 50 340, 50 410, 65 420 C 80 410, 85 340, 85 310 Z" fill={m.arme.fill} stroke={m.arme.stroke} strokeWidth="2" />
-                                          <path d="M 328 315 C 350 340, 350 410, 335 420 C 320 410, 315 340, 315 310 Z" fill={m.arme.fill} stroke={m.arme.stroke} strokeWidth="2" />
-                                          {/* Beine */}
-                                          <path d="M 198 390 C 140 390, 125 430, 130 480 C 160 500, 190 470, 198 450 Z" fill={m.beine.fill} stroke={m.beine.stroke} strokeWidth="2" filter="url(#glow)" />
-                                          <path d="M 202 390 C 260 390, 275 430, 270 480 C 240 500, 210 470, 202 450 Z" fill={m.beine.fill} stroke={m.beine.stroke} strokeWidth="2" filter="url(#glow)" />
-                                          <path d="M 135 480 C 130 520, 135 560, 155 580 C 175 560, 185 520, 185 460 C 160 485, 140 485, 135 480 Z" fill={m.beine.fill} stroke={m.beine.stroke} strokeWidth="2" />
-                                          <path d="M 265 480 C 270 520, 265 560, 245 580 C 225 560, 215 520, 215 460 C 240 485, 260 485, 265 480 Z" fill={m.beine.fill} stroke={m.beine.stroke} strokeWidth="2" />
-                                          <path d="M 145 590 C 115 630, 130 700, 150 730 C 170 700, 180 630, 165 590 Z" fill={m.beine.fill} stroke={m.beine.stroke} strokeWidth="2" />
-                                          <path d="M 255 590 C 285 630, 270 700, 250 730 C 230 700, 220 630, 235 590 Z" fill={m.beine.fill} stroke={m.beine.stroke} strokeWidth="2" />
-                                      </g>
-                                  )}
-                              </svg>
-                          </div>
-                          <div className="absolute top-4 left-4 space-y-1 z-20">
-                              {[{name: 'Brust', s: m.brust}, {name: 'Rücken', s: m.ruecken}, {name: 'Arme', s: m.arme}].map(item => (
-                                  <div key={item.name} className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-wider bg-black/60 px-2 py-1 rounded backdrop-blur-sm border border-white/10">
-                                      <div className="w-2 h-2 rounded-full" style={{backgroundColor: item.s.hex}}></div><span className="text-gray-300 w-12">{item.name}</span><span style={{color: item.s.hex}}>{item.s.label.split(' ')[0]}</span>
-                                  </div>
-                              ))}
-                          </div>
-                          <div className="absolute top-4 right-4 space-y-1 z-20">
-                              {[{name: 'Beine', s: m.beine}, {name: 'Schulter', s: m.schultern}, {name: 'Core', s: m.core}].map(item => (
-                                  <div key={item.name} className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-wider bg-black/60 px-2 py-1 rounded backdrop-blur-sm border border-white/10">
-                                      <span style={{color: item.s.hex}}>{item.s.label.split(' ')[0]}</span><span className="text-gray-300 w-12 text-right">{item.name}</span><div className="w-2 h-2 rounded-full" style={{backgroundColor: item.s.hex}}></div>
-                                  </div>
-                              ))}
-                          </div>
-                      </GlassCard>
-                  </div>
+                  </PullToRefresh>
               );
           };
 
           const renderTabRoutinen = () => (
-            <div className="space-y-6 pb-32 animate-fade-in">
-              <div className="flex justify-between items-end mb-4">
-                <div><h2 className="text-2xl font-bold text-white">Routinen</h2><p className="text-sm text-gray-400">Verwalte deine Pläne.</p></div>
-                <button onClick={() => setIsRoutineModalOpen(true)} className="bg-lime-500 text-black p-3 rounded-full shadow-[0_0_15px_rgba(132,204,22,0.3)] hover:scale-105 transition"><Plus className="w-5 h-5" /></button>
-              </div>
+            <PullToRefresh onRefresh={loadPersonalData}>
+                <div className="space-y-6 pb-32 animate-fade-in">
+                  <div className="flex justify-between items-end mb-4">
+                    <div><h2 className="text-2xl font-bold text-white">Routinen</h2><p className="text-sm text-gray-400">Verwalte deine Pläne.</p></div>
+                    <button onClick={() => setIsRoutineModalOpen(true)} className="bg-lime-500 text-black p-3 rounded-full shadow-[0_0_15px_rgba(132,204,22,0.3)] hover:scale-105 transition"><Plus className="w-5 h-5" /></button>
+                  </div>
 
-              {isRoutineModalOpen && (
-                  <GlassCard className="animate-fade-in border-lime-500/50 shadow-[0_0_30px_rgba(132,204,22,0.1)]">
-                      <div className="flex justify-between items-center mb-4"><h3 className="font-bold text-white text-lg">Neue Routine</h3><button onClick={() => setIsRoutineModalOpen(false)}><X className="text-gray-400 hover:text-white"/></button></div>
-                      <input type="text" placeholder="Name (z.B. Push Day)" value={newRoutineName} onChange={e=>setNewRoutineName(e.target.value)} className="w-full bg-black/40 text-white rounded-xl p-3 border border-white/20 outline-none mb-4" />
-                      <div className="max-h-60 overflow-y-auto hide-scrollbar space-y-4 mb-4 pr-2">
-                          {Object.entries(EXERCISES).map(([group, exList]) => (
-                              <div key={group}>
-                                  <div className="text-[10px] text-lime-400 uppercase font-bold mb-1 sticky top-0 bg-[#050505]/90 backdrop-blur-md py-1">{group}</div>
-                                  <div className="flex flex-col gap-1">
-                                      {exList.map(ex => (
-                                          <label key={ex} className="flex items-center gap-2 p-2 hover:bg-white/5 rounded-lg cursor-pointer">
-                                              <div className={`w-4 h-4 rounded border flex items-center justify-center transition ${newRoutineExercises.includes(ex) ? 'bg-lime-500 border-lime-500' : 'border-white/20'}`}>{newRoutineExercises.includes(ex) && <Check className="w-3 h-3 text-black" />}</div>
-                                              <span className="text-sm text-gray-300">{ex}</span>
-                                          </label>
-                                      ))}
+                  {isRoutineModalOpen && (
+                      <GlassCard className="animate-fade-in border-lime-500/50 shadow-[0_0_30px_rgba(132,204,22,0.1)]">
+                          <div className="flex justify-between items-center mb-4"><h3 className="font-bold text-white text-lg">Neue Routine</h3><button onClick={() => setIsRoutineModalOpen(false)}><X className="text-gray-400 hover:text-white"/></button></div>
+                          <input type="text" placeholder="Name (z.B. Push Day)" value={newRoutineName} onChange={e=>setNewRoutineName(e.target.value)} className="w-full bg-black/40 text-white rounded-xl p-3 border border-white/20 outline-none mb-4" />
+                          <div className="max-h-60 overflow-y-auto hide-scrollbar space-y-4 mb-4 pr-2">
+                              {Object.entries(EXERCISES).map(([group, exList]) => (
+                                  <div key={group}>
+                                      <div className="text-[10px] text-lime-400 uppercase font-bold mb-1 sticky top-0 bg-[#050505]/90 backdrop-blur-md py-1">{group}</div>
+                                      <div className="flex flex-col gap-1">
+                                          {exList.map(ex => (
+                                              <label key={ex} className="flex items-center gap-2 p-2 hover:bg-white/5 rounded-lg cursor-pointer">
+                                                  <div className={`w-4 h-4 rounded border flex items-center justify-center transition ${newRoutineExercises.includes(ex) ? 'bg-lime-500 border-lime-500' : 'border-white/20'}`}>{newRoutineExercises.includes(ex) && <Check className="w-3 h-3 text-black" />}</div>
+                                                  <span className="text-sm text-gray-300">{ex}</span>
+                                              </label>
+                                          ))}
+                                      </div>
                                   </div>
-                              </div>
-                          ))}
-                      </div>
-                      <button onClick={() => {
-                          if (!newRoutineName || newRoutineExercises.length === 0 || !user || !db) return;
-                          addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'standards'), { name: newRoutineName, exercises: newRoutineExercises }).then(() => { setIsRoutineModalOpen(false); setNewRoutineName(''); setNewRoutineExercises([]); });
-                      }} disabled={!newRoutineName || newRoutineExercises.length===0} className="w-full bg-lime-500 disabled:opacity-50 text-black font-bold p-3 rounded-xl transition">Speichern</button>
-                  </GlassCard>
-              )}
+                              ))}
+                          </div>
+                          <button onClick={() => {
+                              if (!newRoutineName || newRoutineExercises.length === 0 || !user || !db) return;
+                              addDoc(collection(db, 'artifacts', appId, 'users', loggedInUser.username, 'standards'), { name: newRoutineName, exercises: newRoutineExercises })
+                              .then(() => { setIsRoutineModalOpen(false); setNewRoutineName(''); setNewRoutineExercises([]); showToast("Routine gespeichert!"); })
+                              .catch(e => showToast("Fehler", "error"));
+                          }} disabled={!newRoutineName || newRoutineExercises.length===0} className="w-full bg-lime-500 disabled:opacity-50 text-black font-bold p-3 rounded-xl transition">Speichern</button>
+                      </GlassCard>
+                  )}
 
-              <div className="space-y-4">
-                {standards.map(s => (
-                  <GlassCard key={s.id} className="relative group">
-                    <div className="absolute left-0 top-0 w-1 h-full bg-lime-500"></div>
-                    <div className="flex justify-between items-start">
-                      <div><h3 className="text-lg font-bold text-white mb-1">{s.name}</h3><p className="text-xs text-gray-400">{s.exercises.length} Übungen</p></div>
-                      <button onClick={() => deleteDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'standards', s.id))} className="text-red-500/50 hover:text-red-500 transition p-2"><Trash2 className="w-4 h-4" /></button>
-                    </div>
-                    <div className="mt-4 flex flex-wrap gap-1">
-                      {s.exercises.map((ex, i) => <span key={i} className="text-[10px] bg-black/40 border border-white/10 px-2 py-1 rounded-md text-gray-300">{ex}</span>)}
-                    </div>
-                  </GlassCard>
-                ))}
-              </div>
-            </div>
+                  <div className="space-y-4">
+                    {standards.map(s => (
+                      <GlassCard key={s.id} className="relative group">
+                        <div className="absolute left-0 top-0 w-1 h-full bg-lime-500"></div>
+                        <div className="flex justify-between items-start">
+                          <div><h3 className="text-lg font-bold text-white mb-1">{s.name}</h3><p className="text-xs text-gray-400">{s.exercises.length} Übungen</p></div>
+                          <button onClick={() => deleteDoc(doc(db, 'artifacts', appId, 'users', loggedInUser.username, 'standards', s.id))} className="text-red-500/50 hover:text-red-500 transition p-2"><Trash2 className="w-4 h-4" /></button>
+                        </div>
+                        <div className="mt-4 flex flex-wrap gap-1">
+                          {s.exercises.map((ex, i) => <span key={i} className="text-[10px] bg-black/40 border border-white/10 px-2 py-1 rounded-md text-gray-300">{ex}</span>)}
+                        </div>
+                      </GlassCard>
+                    ))}
+                    {standards.length === 0 && !isRoutineModalOpen && <p className="text-gray-500 text-center py-8 text-sm">Keine Routinen angelegt.</p>}
+                  </div>
+                </div>
+            </PullToRefresh>
           );
 
           const renderTabLogbuch = () => {
@@ -596,38 +822,40 @@
               }
 
               return (
-                  <div className="space-y-6 pb-32 animate-fade-in">
-                      <div className="flex justify-between items-end mb-4"><div><h2 className="text-2xl font-bold text-white">Logbuch</h2></div></div>
+                  <PullToRefresh onRefresh={loadPersonalData}>
+                      <div className="space-y-6 pb-32 animate-fade-in">
+                          <div className="flex justify-between items-end mb-4"><div><h2 className="text-2xl font-bold text-white">Logbuch</h2></div></div>
 
-                      <GlassCard className="!p-4">
-                          <div className="flex justify-between items-center mb-4">
-                              <button onClick={() => setCurrentMonth(new Date(currentMonth.setMonth(currentMonth.getMonth() - 1)))} className="p-1 hover:bg-white/10 rounded-full"><ChevronLeft className="text-white" /></button>
-                              <div className="font-bold text-white uppercase tracking-wider">{currentMonth.toLocaleString('de-DE', { month: 'long', year: 'numeric' })}</div>
-                              <button onClick={() => setCurrentMonth(new Date(currentMonth.setMonth(currentMonth.getMonth() + 1)))} className="p-1 hover:bg-white/10 rounded-full"><ChevronRight className="text-white" /></button>
-                          </div>
-                          <div className="grid grid-cols-7 gap-1 text-center mb-2">{['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map(d => <div key={d} className="text-[10px] font-bold text-gray-500">{d}</div>)}</div>
-                          <div className="grid grid-cols-7 gap-1">
-                              {days.map((item, i) => {
-                                  if (!item) return <div key={`e-${i}`} className="h-10"></div>;
-                                  const isSel = selectedCalendarDate === item.dateStr;
-                                  return (
-                                      <button key={item.dateStr} onClick={() => setSelectedCalendarDate(item.dateStr)} 
-                                          className={`relative h-10 rounded-xl flex items-center justify-center text-sm font-medium transition-all ${isSel ? 'bg-lime-500 text-black scale-110 shadow-lg z-10' : 'text-gray-300 hover:bg-white/10'} ${item.hasWorkout && !isSel ? 'text-white font-bold' : ''}`}>
-                                          {item.day}
-                                          {item.hasWorkout && <div className={`absolute bottom-1.5 w-1 h-1 rounded-full ${isSel ? 'bg-black' : 'bg-lime-400 shadow-[0_0_5px_#84cc16]'}`}></div>}
-                                      </button>
-                                  )
-                              })}
-                          </div>
-                      </GlassCard>
+                          <GlassCard className="!p-4">
+                              <div className="flex justify-between items-center mb-4">
+                                  <button onClick={() => setCurrentMonth(new Date(currentMonth.setMonth(currentMonth.getMonth() - 1)))} className="p-1 hover:bg-white/10 rounded-full"><ChevronLeft className="text-white" /></button>
+                                  <div className="font-bold text-white uppercase tracking-wider">{currentMonth.toLocaleString('de-DE', { month: 'long', year: 'numeric' })}</div>
+                                  <button onClick={() => setCurrentMonth(new Date(currentMonth.setMonth(currentMonth.getMonth() + 1)))} className="p-1 hover:bg-white/10 rounded-full"><ChevronRight className="text-white" /></button>
+                              </div>
+                              <div className="grid grid-cols-7 gap-1 text-center mb-2">{['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map(d => <div key={d} className="text-[10px] font-bold text-gray-500">{d}</div>)}</div>
+                              <div className="grid grid-cols-7 gap-1">
+                                  {days.map((item, i) => {
+                                      if (!item) return <div key={`e-${i}`} className="h-10"></div>;
+                                      const isSel = selectedCalendarDate === item.dateStr;
+                                      return (
+                                          <button key={item.dateStr} onClick={() => setSelectedCalendarDate(item.dateStr)} 
+                                              className={`relative h-10 rounded-xl flex items-center justify-center text-sm font-medium transition-all ${isSel ? 'bg-lime-500 text-black scale-110 shadow-lg z-10' : 'text-gray-300 hover:bg-white/10'} ${item.hasWorkout && !isSel ? 'text-white font-bold' : ''}`}>
+                                              {item.day}
+                                              {item.hasWorkout && <div className={`absolute bottom-1.5 w-1 h-1 rounded-full ${isSel ? 'bg-black' : 'bg-lime-400 shadow-[0_0_5px_#84cc16]'}`}></div>}
+                                          </button>
+                                      )
+                                  })}
+                              </div>
+                          </GlassCard>
 
-                      <GlassCard>
-                          <h3 className="text-xs font-bold text-gray-400 mb-4 uppercase tracking-wider flex items-center gap-2"><CalendarIcon className="w-4 h-4" /> {new Date(selectedCalendarDate).toLocaleDateString('de-DE', {weekday:'short', day:'2-digit', month:'short'})}</h3>
-                          {workouts.filter(w => w.date === selectedCalendarDate).length === 0 ? <p className="text-gray-500 text-center py-6 text-sm">Kein Training an diesem Tag.</p> : (
-                              <div className="space-y-2">{workouts.filter(w => w.date === selectedCalendarDate).map(w => <WorkoutItem key={w.id} w={w} />)}</div>
-                          )}
-                      </GlassCard>
-                  </div>
+                          <GlassCard>
+                              <h3 className="text-xs font-bold text-gray-400 mb-4 uppercase tracking-wider flex items-center gap-2"><CalendarIcon className="w-4 h-4" /> {new Date(selectedCalendarDate).toLocaleDateString('de-DE', {weekday:'short', day:'2-digit', month:'short'})}</h3>
+                              {workouts.filter(w => w.date === selectedCalendarDate).length === 0 ? <p className="text-gray-500 text-center py-6 text-sm">Kein Training an diesem Tag.</p> : (
+                                  <div className="space-y-2">{workouts.filter(w => w.date === selectedCalendarDate).map(w => <WorkoutItem key={w.id} w={w} editingSetId={editingSetId} editData={editData} setEditingSetId={setEditingSetId} setEditData={setEditData} handleUpdateSet={handleUpdateSet} handleDeleteSet={handleDeleteSet}/>)}</div>
+                              )}
+                          </GlassCard>
+                      </div>
+                  </PullToRefresh>
               )
           };
 
@@ -635,119 +863,100 @@
             const totalVolume = filteredWorkouts.reduce((acc, curr) => acc + (parseFloat(curr.weight) * parseInt(curr.reps)), 0) || 0;
 
             return (
-              <div className="space-y-6 pb-32 animate-fade-in print-container">
-                <div className="flex justify-between items-end mb-2 no-print">
-                  <h2 className="text-2xl font-bold text-white">Auswertung</h2>
-                  <button onClick={() => window.print()} className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-xl border border-white/10 transition text-sm shadow-lg">
-                    <Download className="w-4 h-4" /> PDF
-                  </button>
-                </div>
-
-                {/* FILTER SYSTEM */}
-                <div className="no-print space-y-3">
-                  <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
-                    {[ { id: 'letzte_woche', label: '1 Woche' }, { id: 'letzter_monat', label: '1 Monat' }, { id: 'letztes_jahr', label: '1 Jahr' }, { id: 'custom', label: 'Individuell' } ].map(f => (
-                      <button key={f.id} onClick={() => setFilterType(f.id)} className={`whitespace-nowrap px-4 py-2 rounded-full text-xs font-bold transition border ${filterType === f.id ? 'bg-white text-black border-white shadow-[0_0_10px_rgba(255,255,255,0.3)]' : 'bg-transparent text-gray-400 border-white/20'}`}>
-                        {f.label}
+              <PullToRefresh onRefresh={loadPersonalData}>
+                  <div className="space-y-6 pb-32 animate-fade-in print-container">
+                    <div className="flex justify-between items-end mb-2 no-print">
+                      <h2 className="text-2xl font-bold text-white">Auswertung</h2>
+                      <button onClick={() => window.print()} className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-xl border border-white/10 transition text-sm shadow-lg">
+                        <Download className="w-4 h-4" /> PDF
                       </button>
-                    ))}
-                  </div>
-                  
-                  {filterType === 'custom' && (
-                    <GlassCard className="flex gap-4 !p-3 animate-fade-in">
-                      <div className="flex-1"><label className="block text-[9px] text-gray-500 uppercase">Start</label><input type="date" value={customStart} onChange={e=>setCustomStart(e.target.value)} className="w-full bg-transparent text-sm text-white outline-none color-scheme-dark" /></div>
-                      <div className="flex-1 border-l border-white/10 pl-4"><label className="block text-[9px] text-gray-500 uppercase">Ende</label><input type="date" value={customEnd} onChange={e=>setCustomEnd(e.target.value)} className="w-full bg-transparent text-sm text-white outline-none color-scheme-dark" /></div>
+                    </div>
+
+                    <div className="no-print space-y-3">
+                      <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
+                        {[ { id: 'letzte_woche', label: '1 Woche' }, { id: 'letzter_monat', label: '1 Monat' }, { id: 'letztes_jahr', label: '1 Jahr' }, { id: 'custom', label: 'Individuell' } ].map(f => (
+                          <button key={f.id} onClick={() => setFilterType(f.id)} className={`whitespace-nowrap px-4 py-2 rounded-full text-xs font-bold transition border ${filterType === f.id ? 'bg-white text-black border-white shadow-[0_0_10px_rgba(255,255,255,0.3)]' : 'bg-transparent text-gray-400 border-white/20'}`}>
+                            {f.label}
+                          </button>
+                        ))}
+                      </div>
+                      
+                      {filterType === 'custom' && (
+                        <GlassCard className="flex gap-4 !p-3 animate-fade-in">
+                          <div className="flex-1"><label className="block text-[9px] text-gray-500 uppercase">Start</label><input type="date" value={customStart} onChange={e=>setCustomStart(e.target.value)} className="w-full bg-transparent text-sm text-white outline-none color-scheme-dark" /></div>
+                          <div className="flex-1 border-l border-white/10 pl-4"><label className="block text-[9px] text-gray-500 uppercase">Ende</label><input type="date" value={customEnd} onChange={e=>setCustomEnd(e.target.value)} className="w-full bg-transparent text-sm text-white outline-none color-scheme-dark" /></div>
+                        </GlassCard>
+                      )}
+                    </div>
+
+                    <div className="hidden print-block text-black mb-8 border-b-2 border-black pb-4">
+                      <h1 className="text-3xl font-black">LiftPro Report</h1>
+                      <p className="text-sm">Erstellt am: {new Date().toLocaleDateString('de-DE')}</p>
+                      <p className="text-sm">Zeitraum: {filterType === 'custom' ? `${customStart} bis ${customEnd}` : filterType.replace('_', ' ').toUpperCase()}</p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <GlassCard className="flex flex-col items-center justify-center text-center !p-4 print-card relative overflow-hidden">
+                        <div className="absolute -bottom-4 -right-4 w-16 h-16 bg-lime-500/20 rounded-full blur-xl no-print"></div>
+                        <Activity className="w-6 h-6 text-lime-400 mb-2 print-text-black" />
+                        <div className="text-2xl font-black text-white print-text-black">{filteredWorkouts.length}</div>
+                        <div className="text-[10px] text-gray-400 uppercase font-bold print-text-black">Absolvierte Sätze</div>
+                      </GlassCard>
+                      <GlassCard className="flex flex-col items-center justify-center text-center !p-4 print-card relative overflow-hidden">
+                        <div className="absolute -top-4 -left-4 w-16 h-16 bg-amber-500/20 rounded-full blur-xl no-print"></div>
+                        <Dumbbell className="w-6 h-6 text-amber-400 mb-2 print-text-black" />
+                        <div className="text-2xl font-black text-white print-text-black">{totalVolume} <span className="text-sm">kg</span></div>
+                        <div className="text-[10px] text-gray-400 uppercase font-bold print-text-black">Volumen (Zeitraum)</div>
+                      </GlassCard>
+                    </div>
+
+                    <GlassCard className="print-card">
+                      <h3 className="text-xs font-bold text-gray-400 mb-4 uppercase tracking-wider print-text-black">Trainings-Historie</h3>
+                      {dataLoading ? ( <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 text-lime-400 animate-spin" /></div>
+                      ) : filteredWorkouts.length === 0 ? ( <p className="text-gray-500 text-center py-8 text-sm print-text-black">Keine Daten im Zeitraum.</p>
+                      ) : (
+                         <div className="space-y-3">
+                         {filteredWorkouts.slice(0, 30).map(w => <WorkoutItem key={w.id} w={w} editingSetId={editingSetId} editData={editData} setEditingSetId={setEditingSetId} setEditData={setEditData} handleUpdateSet={handleUpdateSet} handleDeleteSet={handleDeleteSet} />)}
+                         {filteredWorkouts.length > 30 && <p className="text-xs text-center text-gray-500 mt-4 print-text-black">+ {filteredWorkouts.length - 30} weitere Sätze in diesem Zeitraum (siehe PDF)</p>}
+                       </div>
+                      )}
                     </GlassCard>
-                  )}
-                </div>
 
-                {/* PRINT HEADER */}
-                <div className="hidden print-block text-black mb-8 border-b-2 border-black pb-4">
-                  <h1 className="text-3xl font-black">LiftPro Report</h1>
-                  <p className="text-sm">Erstellt am: {new Date().toLocaleDateString('de-DE')}</p>
-                  <p className="text-sm">Zeitraum: {filterType === 'custom' ? `${customStart} bis ${customEnd}` : filterType.replace('_', ' ').toUpperCase()}</p>
-                </div>
-
-                {/* STATISTIK KARTEN */}
-                <div className="grid grid-cols-2 gap-4">
-                  <GlassCard className="flex flex-col items-center justify-center text-center !p-4 print-card relative overflow-hidden">
-                    <div className="absolute -bottom-4 -right-4 w-16 h-16 bg-lime-500/20 rounded-full blur-xl no-print"></div>
-                    <Activity className="w-6 h-6 text-lime-400 mb-2 print-text-black" />
-                    <div className="text-2xl font-black text-white print-text-black">{filteredWorkouts.length}</div>
-                    <div className="text-[10px] text-gray-400 uppercase font-bold print-text-black">Absolvierte Sätze</div>
-                  </GlassCard>
-                  <GlassCard className="flex flex-col items-center justify-center text-center !p-4 print-card relative overflow-hidden">
-                    <div className="absolute -top-4 -left-4 w-16 h-16 bg-amber-500/20 rounded-full blur-xl no-print"></div>
-                    <Dumbbell className="w-6 h-6 text-amber-400 mb-2 print-text-black" />
-                    <div className="text-2xl font-black text-white print-text-black">{totalVolume} <span className="text-sm">kg</span></div>
-                    <div className="text-[10px] text-gray-400 uppercase font-bold print-text-black">Volumen (Zeitraum)</div>
-                  </GlassCard>
-                </div>
-
-                {/* HISTORIE LISTENANSICHT */}
-                <GlassCard className="print-card">
-                  <h3 className="text-xs font-bold text-gray-400 mb-4 uppercase tracking-wider print-text-black">Trainings-Historie</h3>
-                  {dataLoading ? ( <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 text-lime-400 animate-spin" /></div>
-                  ) : filteredWorkouts.length === 0 ? ( <p className="text-gray-500 text-center py-8 text-sm print-text-black">Keine Daten im Zeitraum.</p>
-                  ) : (
-                     <div className="space-y-3">
-                     {filteredWorkouts.slice(0, 30).map(w => <WorkoutItem key={w.id} w={w} />)}
-                     {filteredWorkouts.length > 30 && <p className="text-xs text-center text-gray-500 mt-4 print-text-black">+ {filteredWorkouts.length - 30} weitere Sätze in diesem Zeitraum (siehe PDF)</p>}
-                   </div>
-                  )}
-                </GlassCard>
-
-                {/* 1RM REKORDE */}
-                <GlassCard className="print-card">
-                    <h3 className="text-xs font-bold text-gray-400 mb-4 uppercase tracking-wider print-text-black">All-Time 1RM Rekorde</h3>
-                    <div className="space-y-4">
-                       {Object.keys(EXERCISES).map(muscleGroup => {
-                           const groupWorkouts = workouts.filter(w => w.muscle === muscleGroup && w.estimated1RM > 0);
-                           if (groupWorkouts.length === 0) return null;
-                           const bestSet = groupWorkouts.reduce((prev, current) => (prev.estimated1RM > current.estimated1RM) ? prev : current);
-                           return (
-                               <div key={muscleGroup} className="flex justify-between items-center border-b border-white/5 pb-2 last:border-0 print-list-item">
-                                   <div>
-                                       <div className="text-[10px] text-lime-400 font-bold uppercase print-text-black">{muscleGroup}</div>
-                                       <div className="font-bold text-sm text-gray-100 print-text-black">{bestSet.exercise}</div>
+                    <GlassCard className="print-card">
+                        <h3 className="text-xs font-bold text-gray-400 mb-4 uppercase tracking-wider print-text-black">All-Time 1RM Rekorde</h3>
+                        <div className="space-y-4">
+                           {Object.keys(EXERCISES).map(muscleGroup => {
+                               const groupWorkouts = workouts.filter(w => w.muscle === muscleGroup && w.estimated1RM > 0);
+                               if (groupWorkouts.length === 0) return null;
+                               const bestSet = groupWorkouts.reduce((prev, current) => (prev.estimated1RM > current.estimated1RM) ? prev : current);
+                               return (
+                                   <div key={muscleGroup} className="flex justify-between items-center border-b border-white/5 pb-2 last:border-0 print-list-item">
+                                       <div>
+                                           <div className="text-[10px] text-lime-400 font-bold uppercase print-text-black">{muscleGroup}</div>
+                                           <div className="font-bold text-sm text-gray-100 print-text-black">{bestSet.exercise}</div>
+                                       </div>
+                                       <div className="text-right">
+                                           <div className="font-black text-lg text-white print-text-black">{bestSet.estimated1RM} <span className="text-[10px] font-normal text-gray-400 print-text-black">kg (1RM)</span></div>
+                                       </div>
                                    </div>
-                                   <div className="text-right">
-                                       <div className="font-black text-lg text-white print-text-black">{bestSet.estimated1RM} <span className="text-[10px] font-normal text-gray-400 print-text-black">kg (1RM)</span></div>
-                                   </div>
-                               </div>
-                           );
-                       })}
-                     </div>
-                </GlassCard>
-              </div>
+                               );
+                           })}
+                         </div>
+                    </GlassCard>
+                  </div>
+              </PullToRefresh>
             );
           };
 
           return (
             <div className="min-h-screen font-sans selection:bg-lime-500/30 overflow-x-hidden pb-10">
+              <Toast message={toast.message} type={toast.type} />
+              
               <div className="fixed top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0 no-print">
                 <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-900/20 rounded-full blur-[120px]"></div>
                 <div className="absolute top-[40%] right-[-10%] w-[30%] h-[30%] bg-blue-900/10 rounded-full blur-[100px]"></div>
               </div>
 
-              <style dangerouslySetInnerHTML={{__html: `
-                @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-                .animate-fade-in { animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-                .hide-scrollbar::-webkit-scrollbar { display: none; }
-                .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-                .color-scheme-dark { color-scheme: dark; }
-                .signature-font { font-family: 'Caveat', cursive; }
-                @media print {
-                    body { background: white !important; color: black !important; }
-                    .no-print { display: none !important; }
-                    .print-container { padding: 0 !important; margin: 0 !important; }
-                    .print-block { display: block !important; }
-                    .print-text-black { color: black !important; }
-                    .print-card { background: transparent !important; border: 1px solid #ddd !important; box-shadow: none !important; break-inside: avoid; }
-                    .print-list-item { background: transparent !important; border-bottom: 1px solid #eee !important; border-radius: 0 !important; }
-                }
-              `}} />
-              
               <header className="sticky top-0 z-20 px-5 py-4 bg-[#050505]/60 backdrop-blur-xl border-b border-white/5 no-print">
                 <div className="flex items-center justify-between max-w-2xl mx-auto">
                   <div className="flex items-center gap-3">
@@ -772,6 +981,7 @@
                 {activeTab === 'routinen' && renderTabRoutinen()}
                 {activeTab === 'logbuch' && renderTabLogbuch()}
                 {activeTab === 'stats' && renderTabStats()}
+                {activeTab === 'admin' && renderTabAdmin()}
               </main>
 
               <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[95%] max-w-[450px] z-50 no-print">
@@ -783,13 +993,15 @@
                   </button>
                   <button onClick={() => setActiveTab('logbuch')} className={`flex flex-col items-center justify-center w-12 h-12 rounded-2xl transition-all duration-300 ${activeTab === 'logbuch' ? 'text-lime-400 bg-white/5' : 'text-gray-500 hover:text-gray-300'}`}><CalendarIcon className="w-5 h-5" /></button>
                   <button onClick={() => setActiveTab('stats')} className={`flex flex-col items-center justify-center w-12 h-12 rounded-2xl transition-all duration-300 ${activeTab === 'stats' ? 'text-lime-400 bg-white/5' : 'text-gray-500 hover:text-gray-300'}`}><BarChart2 className="w-5 h-5" /></button>
+                  {loggedInUser.role === 'admin' && (
+                      <button onClick={() => setActiveTab('admin')} className={`flex flex-col items-center justify-center w-12 h-12 rounded-2xl transition-all duration-300 ${activeTab === 'admin' ? 'text-blue-400 bg-blue-500/10' : 'text-gray-500 hover:text-blue-300'}`}><Settings className="w-5 h-5" /></button>
+                  )}
                 </nav>
               </div>
             </div>
           );
         }
 
-        // --- RENDER APP ---
         const root = createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
