@@ -10,11 +10,17 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#050505">
     
+    <!-- EIGENES LOGO FÜR DEN HOMESCREEN -->
     <link rel="apple-touch-icon" href="Logo.PNG">
     <link rel="icon" type="image/png" href="Logo.PNG">
     
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Babel (Compiler für React) -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Custom Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@700&display=swap" rel="stylesheet">
     
     <style>
@@ -24,7 +30,15 @@
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .color-scheme-dark { color-scheme: dark; }
         .signature-font { font-family: 'Caveat', cursive; }
-        .timeline-line::before { content: ''; position: absolute; left: 0.375rem; top: 0.5rem; bottom: 0.5rem; width: 1px; background: rgba(255, 255, 255, 0.1); }
+        
+        /* Timeline line for grouped sets */
+        .timeline-line::before {
+            content: ''; position: absolute; left: 0.375rem; top: 0.5rem; bottom: 0.5rem;
+            width: 1px; background: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Checkbox Styling */
+        input[type="checkbox"] { accent-color: #84cc16; width: 1.25rem; height: 1.25rem; }
         
         @media print {
             body { background: white !important; color: black !important; }
@@ -44,7 +58,7 @@
     <script type="text/babel" data-type="module">
         import React, { useState, useEffect, useRef, useMemo } from 'https://esm.sh/react@18';
         import { createRoot } from 'https://esm.sh/react-dom@18/client';
-        import { Mic, Activity, BarChart2, Layers, Plus, Check, Play, Square, Download, Calendar as CalendarIcon, Dumbbell, Settings, Clock, Loader2, AlertCircle, StopCircle, Zap, HeartPulse, Share, RefreshCcw, X, Edit2, Save, Trash2, ChevronLeft, ChevronRight, Pause, RotateCcw, Delete, Users, UserPlus, ChevronDown, ChevronUp, Bell, Vibrate, Copy, LogOut, Ban, Unlock } from 'https://esm.sh/lucide-react@0.292.0';
+        import { Mic, Activity, BarChart2, Layers, Plus, Check, Play, Square, Download, Calendar as CalendarIcon, Dumbbell, Settings, Clock, Loader2, AlertCircle, StopCircle, Zap, HeartPulse, Share, RefreshCcw, X, Edit2, Save, Trash2, ChevronLeft, ChevronRight, Pause, RotateCcw, Delete, Users, UserPlus, ChevronDown, ChevronUp, Bell, Vibrate, Copy, LogOut, Ban, Unlock, EyeOff } from 'https://esm.sh/lucide-react@0.292.0';
         
         // Firebase Imports
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
@@ -75,7 +89,7 @@
             appId = typeof __app_id !== 'undefined' ? __app_id : 'liftpro-github';
         } catch (e) { console.error("Firebase Init Fehler", e); }
 
-        // --- KONSTANTEN ---
+        // --- KONSTANTEN (Datenbank) ---
         const MUSCLE_GROUPS = ['Brust', 'Rücken', 'Beine', 'Schultern', 'Arme', 'Core', 'Cardio'];
         const EXERCISES = {
           'Brust': ['Langhantel-Bankdrücken (Flach)', 'Langhantel-Bankdrücken (Schrägbank)', 'Langhantel-Bankdrücken (Negativbank)', 'Kurzhantel-Bankdrücken (Flach)', 'Kurzhantel-Bankdrücken (Schrägbank)', 'Kurzhantel-Bankdrücken (Negativbank)', 'Kurzhantel-Fliegende (Flys, Flach)', 'Kurzhantel-Fliegende (Schräg)', 'Fliegende am Kabelzug (High-to-Low)', 'Fliegende am Kabelzug (Mitte)', 'Fliegende am Kabelzug (Low-to-High)', 'Klassischer Liegestütz', 'Decline Push-up', 'Incline Push-up', 'Diamant-Liegestütz', 'Weite Liegestütze', 'Dips (Brustfokus)', 'Maschinen-Brustpresse (flach)', 'Maschinen-Brustpresse (schräg)', 'Butterfly / Pec Deck', 'Einarmiges Butterfly am Kabel', 'Kurzhantel-Überzüge', 'Überzüge an der Maschine/Kabel', 'Bodenpresse (Kurzhanteln)', 'Bodenpresse (Langhantel)', 'Squeeze Press (Kurzhanteln)', 'Ring Push-ups', 'Guillotine Press', 'Jammer Press', 'Smith-Machine Bankdrücken (Flach)', 'Smith-Machine Bankdrücken (Schräg)', 'Einarmiges Kurzhantel-Bankdrücken', 'Landmine Press (Brust)', 'Cable Chest Press', 'Pseudo Planche Push-ups'],
@@ -88,20 +102,28 @@
         };
         const SET_TYPES = ['Arbeitssatz', 'Aufwärmsatz', 'Dropset', 'Top-Set'];
 
-        // --- AUDIO ENGINE ---
+        // --- AUDIO ENGINE (Zuverlässig für Browser) ---
+        let audioCtx = null;
+        const initAudio = () => {
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+            } catch(e) { console.error("Audio Context Init Error", e); }
+        };
+
         const playTimerBeep = () => {
             try {
-                const ctx = new (window.AudioContext || window.webkitAudioContext)();
-                const osc = ctx.createOscillator();
-                const gainNode = ctx.createGain();
+                if (!audioCtx) initAudio();
+                const osc = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
                 osc.type = 'sine';
-                osc.frequency.setValueAtTime(880, ctx.currentTime); 
-                gainNode.gain.setValueAtTime(0, ctx.currentTime);
-                gainNode.gain.linearRampToValueAtTime(1, ctx.currentTime + 0.05);
-                gainNode.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.5);
-                osc.connect(gainNode); gainNode.connect(ctx.destination);
-                osc.start(); osc.stop(ctx.currentTime + 0.6);
-            } catch (e) { console.log("Audio blocked"); }
+                osc.frequency.setValueAtTime(880, audioCtx.currentTime); 
+                gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+                gainNode.gain.linearRampToValueAtTime(1, audioCtx.currentTime + 0.05);
+                gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.5);
+                osc.connect(gainNode); gainNode.connect(audioCtx.destination);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.6);
+            } catch (e) { console.log("Audio blocked", e); }
         };
 
         // --- AUSGELAGERTE KOMPONENTEN ---
@@ -286,6 +308,7 @@
             );
         };
 
+
         // --- HAUPT APP KOMPONENTE ---
         function App() {
           const [activeTab, setActiveTab] = useState('eingabe'); 
@@ -304,14 +327,13 @@
           const [authLoading, setAuthLoading] = useState(true);
           const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
           
-          // User Settings (Alarms)
+          // User Settings
           const [userSettings, setUserSettings] = useState({ sound: true, vibration: true });
 
           // Registration & Login
           const [loginStep, setLoginStep] = useState('username'); // 'username' | 'pin' | 'register'
           const [loginUsername, setLoginUsername] = useState('');
           const [loginPin, setLoginPin] = useState('');
-          
           const [regUsername, setRegUsername] = useState('');
           const [regPin, setRegPin] = useState('');
 
@@ -347,7 +369,6 @@
           const [isWorkoutActive, setIsWorkoutActive] = useState(false);
           const [workoutStartTime, setWorkoutStartTime] = useState(null);
           const [elapsedTime, setElapsedTime] = useState(0); 
-          
           const [restDuration, setRestDuration] = useState(90);
           const [restEndTime, setRestEndTime] = useState(null);
           const [restTimeRemaining, setRestTimeRemaining] = useState(0);
@@ -367,7 +388,7 @@
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
                 else await signInAnonymously(auth);
               } catch (error) { 
-                  showToast("Auth-Fehler: Anonyme Anmeldung aktivieren!", 'error'); 
+                  showToast("Auth-Fehler: Anonyme Anmeldung prüfen!", 'error'); 
                   setAuthLoading(false); 
               }
             };
@@ -382,7 +403,7 @@
               const unsub = onSnapshot(usersRef, (snap) => {
                   const fetchedUsers = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                   if (fetchedUsers.length === 0) {
-                      addDoc(usersRef, { username: 'AYOUB', pin: '1991', role: 'admin', lastActive: Date.now(), isBanned: false }).catch(e => console.error(e));
+                      addDoc(usersRef, { username: 'AYOUB', pin: '1991', role: 'admin', lastActive: Date.now(), isBanned: false, isPrivate: false }).catch(e => console.error(e));
                   } else setAppUsers(fetchedUsers);
                   setAuthLoading(false);
               }, () => { setAuthLoading(false); });
@@ -439,7 +460,7 @@
           const processLogin = () => {
               const u = appUsers.find(u => u.username.toUpperCase() === loginUsername.toUpperCase());
               if (!u) { showToast('Nutzer nicht gefunden', 'error'); setLoginPin(''); setLoginStep('username'); return; }
-              if (u.isBanned) { showToast('Dein Konto wurde vom Admin gesperrt!', 'error'); setLoginPin(''); setLoginStep('username'); return; }
+              if (u.isBanned) { showToast('Konto wurde vom Admin gesperrt!', 'error'); setLoginPin(''); setLoginStep('username'); return; }
               if (u.pin !== loginPin) { showToast('Falscher PIN', 'error'); setLoginPin(''); return; }
               setLoggedInUser(u);
               setViewingUser(u); 
@@ -450,7 +471,7 @@
               if (!regUsername || regPin.length !== 4) return showToast("Name & 4-stelliger PIN benötigt", "error");
               if (appUsers.some(u => u.username.toUpperCase() === regUsername.toUpperCase())) return showToast("Benutzername vergeben", "error");
               try {
-                  const newUser = { username: regUsername.toUpperCase(), pin: regPin, role: 'user', lastActive: Date.now(), isBanned: false };
+                  const newUser = { username: regUsername.toUpperCase(), pin: regPin, role: 'user', lastActive: Date.now(), isBanned: false, isPrivate: false };
                   const docRef = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'app_users'), newUser);
                   const u = { id: docRef.id, ...newUser };
                   setLoggedInUser(u);
@@ -491,6 +512,7 @@
           }, [isRestTimerActive, restEndTime, userSettings]);
 
           const startRestTimer = (secs) => {
+              initAudio(); // Audio freigeben
               setRestDuration(secs);
               setRestTimeRemaining(secs);
               setRestEndTime(Date.now() + secs * 1000);
@@ -537,6 +559,16 @@
               }
           };
 
+          const togglePrivacy = async (isPrivate) => {
+              if(!firebaseUser || !db || !loggedInUser) return;
+              try {
+                  await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'app_users', loggedInUser.id), { isPrivate });
+                  setLoggedInUser({...loggedInUser, isPrivate});
+                  if(loggedInUser.id === viewingUser.id) setViewingUser({...viewingUser, isPrivate});
+                  showToast(isPrivate ? "Profil ist nun versteckt" : "Profil ist nun öffentlich");
+              } catch(e) { showToast("Fehler beim Speichern", "error"); }
+          };
+
           const handleAddCustomExercise = async () => {
               if (!newCustomExName || !customExModal.muscle || !firebaseUser || !db) return;
               if (!canEdit) return showToast("Keine Berechtigung", "error");
@@ -575,7 +607,7 @@
               timestamp: Date.now(), timeString: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
             };
             try {
-                new (window.AudioContext || window.webkitAudioContext)().resume(); // Unlock audio
+                initAudio(); // Audio freischalten
                 await addDoc(collection(db, 'artifacts', appId, 'users', viewingUser.username, 'workouts'), newSetData);
                 showToast("Geloggt!"); setWeight(''); setReps(''); startRestTimer(restDuration);
             } catch (error) { showToast("Speicherfehler", 'error'); }
@@ -668,7 +700,7 @@
                   if (!adminNewUName || adminNewUPin.length !== 4) return showToast("Name & 4-PIN benötigt", "error");
                   if (appUsers.some(u => u.username.toUpperCase() === adminNewUName.toUpperCase())) return showToast("Existiert bereits", "error");
                   try {
-                      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'app_users'), { username: adminNewUName.toUpperCase(), pin: adminNewUPin, role: 'user', lastActive: Date.now(), isBanned: false });
+                      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'app_users'), { username: adminNewUName.toUpperCase(), pin: adminNewUPin, role: 'user', lastActive: Date.now(), isBanned: false, isPrivate: false });
                       setAdminNewUName(''); setAdminNewUPin(''); showToast("Nutzer angelegt!");
                   } catch (e) { showToast("Fehler", "error"); }
               };
@@ -1257,9 +1289,23 @@
                               </div>
 
                               <div>
-                                  <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Community (Andere Profile)</h4>
+                                  <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Privatsphäre</h4>
+                                  <div className="bg-black/40 rounded-xl p-3 space-y-3 mb-6">
+                                      <label className="flex items-center justify-between cursor-pointer">
+                                          <span className="text-sm flex items-center gap-2 text-white"><EyeOff className="w-4 h-4"/> Profil verbergen</span>
+                                          <input type="checkbox" checked={loggedInUser?.isPrivate || false} onChange={(e) => togglePrivacy(e.target.checked)} />
+                                      </label>
+                                      <p className="text-[9px] text-gray-500 mt-1">Andere Nutzer können deine Trainingsdaten nicht mehr einsehen.</p>
+                                  </div>
+                              </div>
+
+                              <div>
+                                  <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Community (Andere Profile ansehen)</h4>
                                   <select value={viewingUser?.username} onChange={(e) => setViewingUser(appUsers.find(u => u.username === e.target.value))} className="w-full bg-black/40 text-white rounded-xl p-3 border border-white/20 outline-none text-sm font-bold uppercase">
-                                      {appUsers.map(u => <option key={u.id} value={u.username}>{u.username} {u.username === loggedInUser.username ? '(Ich)' : ''}</option>)}
+                                      {/* Zeige Nutzer, die NICHT privat sind, ODER den eingeloggten Nutzer selbst, ODER alle wenn Admin */}
+                                      {appUsers.filter(u => !u.isPrivate || u.username === loggedInUser.username || loggedInUser.role === 'admin').map(u => (
+                                          <option key={u.id} value={u.username}>{u.username} {u.username === loggedInUser.username ? '(Ich)' : ''}</option>
+                                      ))}
                                   </select>
                                   <p className="text-[9px] text-gray-500 mt-2">Du bist eingeloggt als <strong className="text-white">{loggedInUser.username}</strong>.</p>
                               </div>
@@ -1303,8 +1349,8 @@
                   <div className="flex items-center gap-3">
                     <BrandLogo />
                     <div className="flex flex-col justify-center">
-                        <h1 className="text-2xl font-black text-white tracking-tight leading-none">Lift<span className="text-lime-400">Pro</span></h1>
-                        <span className="text-[14px] signature-font font-bold tracking-wide leading-none mt-1" style={{ background: 'linear-gradient(to right, #a3e635, #3b82f6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Made by Ayoub</span>
+                        <h1 className="text-2xl font-black text-white tracking-tight leading-none mt-1">Lift<span className="text-lime-400">Pro</span></h1>
+                        <span className="text-[13px] signature-font font-bold tracking-wide leading-none mt-1" style={{ background: 'linear-gradient(to right, #a3e635, #3b82f6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Made by Ayoub</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
