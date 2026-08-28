@@ -27,14 +27,15 @@
         .timeline-line::before { content: ''; position: absolute; left: 0.375rem; top: 0.5rem; bottom: 0.5rem; width: 1px; background: rgba(255, 255, 255, 0.1); }
         input[type="checkbox"] { accent-color: #84cc16; width: 1.25rem; height: 1.25rem; cursor: pointer; }
         
-        /* Apple Liquid Glass Basisklasse */
+        /* Apple Liquid Glass Basisklasse (VisionOS Style) */
         .liquid-glass {
-            background: rgba(255, 255, 255, 0.02);
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%);
             backdrop-filter: blur(40px);
             -webkit-backdrop-filter: blur(40px);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            border-top: 1px solid rgba(255, 255, 255, 0.15);
-            box-shadow: 0 10px 40px -10px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            border-left: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 15px 35px -5px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.1);
         }
 
         @media print {
@@ -100,7 +101,7 @@
         };
         const SET_TYPES = ['Arbeitssatz', 'Aufwärmsatz', 'Dropset', 'Top-Set'];
 
-        // --- AUDIO ENGINE (5 Sekunden Puls-Alarm) ---
+        // --- AUDIO ENGINE ---
         let audioCtx = null;
         const initAudio = () => {
             try {
@@ -111,14 +112,12 @@
 
         const trigger5SecAlarm = (vibrationEnabled, soundEnabled) => {
             if (vibrationEnabled && navigator.vibrate) {
-                // 5 Sekunden lang vibrieren (Pulsierend)
                 navigator.vibrate([500, 300, 500, 300, 500, 300, 500, 300, 500, 300, 500]);
             }
             if (soundEnabled) {
                 try {
                     if (!audioCtx) initAudio();
                     const now = audioCtx.currentTime;
-                    // Generiere 5 Beeps innerhalb von 5 Sekunden
                     for(let i=0; i<5; i++) {
                         const osc = audioCtx.createOscillator();
                         const gain = audioCtx.createGain();
@@ -148,9 +147,9 @@
         const Toast = ({ message, type }) => {
             if (!message) return null;
             return (
-                <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] animate-fade-in no-print">
-                    <div className={`px-4 py-3 rounded-2xl shadow-2xl backdrop-blur-2xl border text-sm font-bold flex items-center gap-2 ${type === 'error' ? 'bg-red-500/20 border-red-500/50 text-red-400' : 'bg-lime-500/20 border-lime-500/50 text-lime-400'}`}>
-                        {type === 'error' ? <AlertCircle className="w-5 h-5" /> : <Check className="w-5 h-5" />}
+                <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] animate-fade-in no-print w-max max-w-[90vw]">
+                    <div className={`px-4 py-3 rounded-2xl shadow-2xl backdrop-blur-3xl border text-sm font-bold flex items-center gap-2 ${type === 'error' ? 'bg-red-500/30 border-red-500/50 text-red-100' : 'bg-lime-500/30 border-lime-500/50 text-lime-100'}`}>
+                        {type === 'error' ? <AlertCircle className="w-5 h-5 flex-shrink-0 text-red-400" /> : <Check className="w-5 h-5 flex-shrink-0 text-lime-400" />}
                         {message}
                     </div>
                 </div>
@@ -214,10 +213,8 @@
             const totalMinutes = m + s/60;
 
             if (type.includes('Rad') || type.includes('Stairmaster')) {
-                // Geschwindigkeit km/h
                 return `${(dist / totalHours).toFixed(1)} km/h`;
             } else {
-                // Pace min/km
                 const paceMinDecimal = totalMinutes / dist;
                 const paceMin = Math.floor(paceMinDecimal);
                 const paceSec = Math.round((paceMinDecimal - paceMin) * 60);
@@ -269,20 +266,20 @@
             }
 
             return (
-                <div className="bg-white/5 rounded-3xl border border-white/10 overflow-hidden print-card transition-all">
-                    <button onClick={() => setIsExpanded(!isExpanded)} className="w-full flex justify-between items-center p-4 hover:bg-white/10 transition-colors">
-                        <div className="text-left flex items-center gap-3">
-                            <div className={`w-10 h-10 rounded-full border border-white/10 flex flex-col items-center justify-center print:hidden shadow-inner flex-shrink-0 ${isCardio ? 'bg-blue-500/20' : 'bg-black/40'}`}>
-                                {isCardio ? <Activity className="w-4 h-4 text-blue-400"/> : (
+                <div className="liquid-glass rounded-3xl overflow-hidden print-card transition-all">
+                    <button onClick={() => setIsExpanded(!isExpanded)} className="w-full flex justify-between items-center p-4 hover:bg-white/5 transition-colors">
+                        <div className="text-left flex items-center gap-4">
+                            <div className={`w-12 h-12 rounded-full border border-white/10 flex flex-col items-center justify-center print:hidden shadow-inner flex-shrink-0 ${isCardio ? 'bg-blue-500/20 text-blue-400' : 'bg-black/40 text-lime-400'}`}>
+                                {isCardio ? <Activity className="w-5 h-5"/> : (
                                     <>
-                                        <span className="text-xs font-black text-lime-400 leading-none">{group.sets.length}</span>
-                                        <span className="text-[7px] text-gray-500 uppercase font-bold mt-0.5">Sets</span>
+                                        <span className="text-[14px] font-black leading-none">{group.sets.length}</span>
+                                        <span className="text-[8px] text-gray-400 uppercase font-bold mt-0.5">Sets</span>
                                     </>
                                 )}
                             </div>
                             <div>
                                 <div className="font-bold text-sm text-white print-text-black">{group.exercise}</div>
-                                <div className="text-[10px] text-gray-400 print-text-black">{groupSubText}</div>
+                                <div className="text-[10px] text-gray-400 print-text-black mt-0.5">{groupSubText}</div>
                             </div>
                         </div>
                         <div className="no-print">
@@ -291,7 +288,7 @@
                     </button>
 
                     {isExpanded && (
-                        <div className="p-4 pt-0 border-t border-white/5 mt-2 bg-black/20">
+                        <div className="p-4 pt-0 border-t border-white/5 mt-2 bg-black/30">
                             <div className="relative pl-6 space-y-4 mt-4 timeline-line">
                                 {group.sets.map((w, index) => {
                                     const isEditing = editingSetId === w.id;
@@ -299,7 +296,7 @@
                                     if (isEditing && canEdit) {
                                         if (w.trackingMode === 'cardio') {
                                             return (
-                                                <div key={w.id} className="bg-blue-900/40 p-3 rounded-2xl border border-blue-500/50 space-y-3 relative z-10 no-print ml-2 shadow-lg">
+                                                <div key={w.id} className="bg-blue-900/30 p-3 rounded-2xl border border-blue-500/40 space-y-3 relative z-10 no-print ml-2 shadow-lg backdrop-blur-md">
                                                     <div className="flex justify-between items-center text-[10px] text-blue-400 font-bold uppercase mb-2">
                                                         <span>Cardio bearbeiten</span><button onClick={() => setEditingSetId(null)}><X className="w-4 h-4 text-gray-400 hover:text-white" /></button>
                                                     </div>
@@ -314,7 +311,7 @@
                                         }
 
                                         return (
-                                            <div key={w.id} className="bg-lime-900/40 p-3 rounded-2xl border border-lime-500/50 space-y-3 relative z-10 no-print ml-2 shadow-lg">
+                                            <div key={w.id} className="bg-lime-900/30 p-3 rounded-2xl border border-lime-500/40 space-y-3 relative z-10 no-print ml-2 shadow-lg backdrop-blur-md">
                                                 <div className="flex justify-between items-center text-[10px] text-lime-400 font-bold uppercase mb-2">
                                                     <span>Satz bearbeiten</span><button onClick={() => setEditingSetId(null)}><X className="w-4 h-4 text-gray-400 hover:text-white" /></button>
                                                 </div>
@@ -341,7 +338,7 @@
 
                                     return (
                                         <div key={w.id} className="flex justify-between items-center group/set relative z-10 print-list-item py-1">
-                                            <div className="flex items-center gap-3">
+                                            <div className="flex items-center gap-4">
                                                 <div className={`absolute -left-7 w-2.5 h-2.5 rounded-full shadow-[0_0_8px] border border-[#050505] print:border-white print:shadow-none ${isCardio ? 'bg-blue-500 shadow-blue-500/80' : 'bg-lime-500 shadow-lime-500/80'}`}></div>
                                                 <div>
                                                     <div className={`text-[11px] font-bold print-text-black ${isCardio ? 'text-blue-400' : 'text-amber-400'}`}>
@@ -401,6 +398,8 @@
           const [regUsername, setRegUsername] = useState('');
           const [regPin, setRegPin] = useState('');
 
+          const [adminEditUserId, setAdminEditUserId] = useState(null);
+          const [adminEditData, setAdminEditData] = useState({ username: '', pin: '' });
           const [adminNewUName, setAdminNewUName] = useState('');
           const [adminNewUPin, setAdminNewUPin] = useState('');
 
@@ -411,22 +410,20 @@
           
           const [heatmapSettings, setHeatmapSettings] = useState({ exhausted: 24, recovering: 48 });
           const [isHeatmapModalOpen, setIsHeatmapModalOpen] = useState(false);
+          
           const [customExModal, setCustomExModal] = useState({ isOpen: false, muscle: '' });
           const [newCustomExName, setNewCustomExName] = useState('');
 
-          // Tracking States (Combined Kraft & Cardio)
-          const [trackingMode, setTrackingMode] = useState('kraft'); // 'kraft' | 'cardio'
+          const [trackingMode, setTrackingMode] = useState('kraft');
           const [selectedStandard, setSelectedStandard] = useState('');
           const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
           
-          // Kraft
           const [muscle, setMuscle] = useState('');
           const [exercise, setExercise] = useState('');
           const [setType, setSetType] = useState('Arbeitssatz');
           const [weight, setWeight] = useState('');
           const [reps, setReps] = useState('');
           
-          // Cardio
           const [cardioType, setCardioType] = useState('Laufen (Joggen)');
           const [cardioDist, setCardioDist] = useState('');
           const [cardioMin, setCardioMin] = useState('');
@@ -461,7 +458,7 @@
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
                 else await signInAnonymously(auth);
               } catch (error) { 
-                  showToast("Auth-Fehler: Anonyme Anmeldung aktivieren!", 'error'); 
+                  showToast("Auth-Fehler. Anonyme Anmeldung prüfen!", 'error'); 
                   setAuthLoading(false); 
               }
             };
@@ -483,6 +480,7 @@
               return () => unsub();
           }, [firebaseUser]);
 
+          // --- ONLINE STATUS PULSE ---
           useEffect(() => {
               if (!loggedInUser || !firebaseUser || !db) return;
               const interval = setInterval(() => {
@@ -528,13 +526,16 @@
               return () => { if (cleanup) cleanup(); };
           }, [viewingUser]);
 
+          // --- AUTH LOGIC ---
           const processLogin = () => {
               const u = appUsers.find(u => u.username.toUpperCase() === loginUsername.toUpperCase());
               if (!u) { showToast('Nutzer nicht gefunden', 'error'); setLoginPin(''); setLoginStep('username'); return; }
-              if (u.isBanned) { showToast('Dein Konto wurde gesperrt!', 'error'); setLoginPin(''); setLoginStep('username'); return; }
+              if (u.isBanned) { showToast('Dein Konto wurde vom Admin gesperrt!', 'error'); setLoginPin(''); setLoginStep('username'); return; }
               if (u.pin !== loginPin) { showToast('Falscher PIN', 'error'); setLoginPin(''); return; }
+              
               setLoggedInUser(u);
               setViewingUser(u); 
+              setIsProfileModalOpen(false); // EXPLIZITER FIX FÜR MODAL-BUG
               showToast(`Willkommen, ${u.username}!`);
           };
 
@@ -547,16 +548,18 @@
                   const u = { id: docRef.id, ...newUser };
                   setLoggedInUser(u);
                   setViewingUser(u);
+                  setIsProfileModalOpen(false); // EXPLIZITER FIX FÜR MODAL-BUG
                   showToast("Konto erfolgreich erstellt!");
               } catch(e) { showToast("Registrierung fehlgeschlagen", "error"); }
           };
 
           const handleLogout = () => {
-              setLoggedInUser(null); setViewingUser(null);
+              setLoggedInUser(null); setViewingUser(null); setIsProfileModalOpen(false);
               setLoginStep('username'); setLoginUsername(''); setLoginPin('');
               showToast("Erfolgreich abgemeldet");
           };
 
+          // --- ROBUSTE HINTERGRUND-TIMERS ---
           useEffect(() => {
             let interval;
             if (isWorkoutActive && workoutStartTime) {
@@ -588,11 +591,30 @@
               setIsRestTimerActive(true);
           };
 
-          const formatTime = (secs) => `${Math.floor(secs / 3600 > 0 ? secs/3600 : 0).toString().padStart(2,'0')}:${Math.floor((secs%3600) / 60).toString().padStart(2, '0')}:${(secs % 60).toString().padStart(2, '0')}`;
+          const formatWorkoutTime = (secs) => {
+              const h = Math.floor(secs / 3600);
+              const m = Math.floor((secs % 3600) / 60);
+              const s = secs % 60;
+              if (h > 0) return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+              return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+          };
+
+          const formatRestTime = (secs) => {
+              const m = Math.floor(secs / 60);
+              const s = secs % 60;
+              return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+          };
 
           const toggleWorkout = () => {
             if (isWorkoutActive) { setIsWorkoutActive(false); setRestTimeRemaining(0); setIsRestTimerActive(false); setRestEndTime(null); } 
             else { setWorkoutStartTime(Date.now() - elapsedTime * 1000); setIsWorkoutActive(true); }
+          };
+
+          const calculate1RM = (w, r) => {
+              const wNum = parseFloat(w), rNum = parseInt(r);
+              if (!wNum || !rNum || rNum <= 0) return 0;
+              if (rNum === 1) return wNum;
+              return Math.round(wNum * (1 + (rNum / 30)));
           };
 
           const canEdit = loggedInUser && viewingUser && (loggedInUser.role === 'admin' || loggedInUser.username === viewingUser.username);
@@ -641,8 +663,8 @@
               updated[customExModal.muscle].push(newCustomExName);
               try {
                   await setDoc(doc(db, 'artifacts', appId, 'users', viewingUser.username, 'settings', 'custom_exercises'), { data: updated }, { merge: true });
-                  setNewCustomExName(''); showToast("Übung hinzugefügt!");
-              } catch (e) { showToast("Fehler", "error"); }
+                  setNewCustomExName(''); showToast("Eigene Übung hinzugefügt!");
+              } catch (e) { showToast("Fehler beim Speichern", "error"); }
           };
 
           const handleDeleteCustomExercise = async (exName) => {
@@ -658,7 +680,7 @@
           const handleSaveSet = async () => {
             if (!firebaseUser || !db || !canEdit) return;
             
-            initAudio(); // Audio Unlock per User-Klick
+            initAudio(); 
             
             let newSetData = {
                 date, trackingMode, timestamp: Date.now(), timeString: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
@@ -774,6 +796,24 @@
           }
 
           const renderTabAdmin = () => {
+              const handleStartEditUser = (u) => {
+                  if (u.username === 'AYOUB') return showToast("Haupt-Admin AYOUB kann nicht bearbeitet werden", "error");
+                  setAdminEditUserId(u.id);
+                  setAdminEditData({ username: u.username, pin: u.pin });
+              };
+
+              const handleSaveEditUser = async () => {
+                  if (!adminEditData.username || adminEditData.pin.length !== 4) return showToast("Name & 4-PIN benötigt", "error");
+                  if (appUsers.some(u => u.username.toUpperCase() === adminEditData.username.toUpperCase() && u.id !== adminEditUserId)) return showToast("Name schon vergeben", "error");
+                  try {
+                      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'app_users', adminEditUserId), {
+                          username: adminEditData.username.toUpperCase(),
+                          pin: adminEditData.pin
+                      });
+                      setAdminEditUserId(null); showToast("Nutzer aktualisiert!");
+                  } catch(e) { showToast("Fehler beim Aktualisieren", "error"); }
+              };
+
               const handleAddUser = async () => {
                   if (!adminNewUName || adminNewUPin.length !== 4) return showToast("Name & 4-PIN benötigt", "error");
                   if (appUsers.some(u => u.username.toUpperCase() === adminNewUName.toUpperCase())) return showToast("Existiert bereits", "error");
@@ -802,7 +842,8 @@
 
               return (
                   <div className="space-y-6 pb-32 animate-fade-in">
-                      <div className="flex justify-between items-end mb-4"><div><h2 className="text-2xl font-bold text-white text-blue-400">Admin Panel</h2><p className="text-sm text-gray-400">Nutzerverwaltung & Status.</p></div></div>
+                      <div className="flex justify-between items-end mb-4"><div><h2 className="text-2xl font-bold text-white text-blue-400">Admin Panel</h2><p className="text-sm text-gray-400">Volle Nutzerkontrolle.</p></div></div>
+                      
                       <GlassCard className="border-blue-500/30">
                           <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Neuen Nutzer anlegen</h3>
                           <div className="flex gap-2 mb-4">
@@ -811,11 +852,29 @@
                           </div>
                           <button onClick={handleAddUser} className="w-full bg-blue-500 text-black font-bold p-3 rounded-lg flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(59,130,246,0.3)]"><UserPlus className="w-4 h-4"/> Anlegen</button>
                       </GlassCard>
+
                       <GlassCard>
                           <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Aktive Nutzer ({appUsers.length})</h3>
                           <div className="space-y-3">
                               {appUsers.map(u => {
                                   const isOnline = checkOnline(u.lastActive);
+                                  
+                                  if (adminEditUserId === u.id) {
+                                      return (
+                                          <div key={u.id} className="bg-blue-900/30 p-3 rounded-xl border border-blue-500/50 space-y-3">
+                                              <div className="flex justify-between items-center text-[10px] text-blue-400 font-bold uppercase mb-2">
+                                                  <span>Nutzer Bearbeiten</span><button onClick={() => setAdminEditUserId(null)}><X className="w-4 h-4 text-gray-400 hover:text-white" /></button>
+                                              </div>
+                                              <div className="flex gap-2">
+                                                  <input type="text" value={adminEditData.username} onChange={e=>setAdminEditData({...adminEditData, username: e.target.value})} className="flex-2 bg-black/60 text-white rounded-lg p-2 border border-white/20 outline-none uppercase w-full text-sm" placeholder="Name" />
+                                                  <input type="number" value={adminEditData.pin} onChange={e=>setAdminEditData({...adminEditData, pin: e.target.value.slice(0,4)})} className="flex-1 bg-black/60 text-white rounded-lg p-2 border border-white/20 outline-none text-center w-20 text-sm" placeholder="PIN" />
+                                                  <button onClick={handleSaveEditUser} className="bg-blue-500 text-black p-2 rounded-lg font-bold"><Save className="w-5 h-5"/></button>
+                                              </div>
+                                              <p className="text-[8px] text-red-400">Achtung: Änderung des Namens trennt die Historie vom alten Namen ab.</p>
+                                          </div>
+                                      );
+                                  }
+
                                   return (
                                       <div key={u.id} className="flex justify-between items-center bg-white/5 p-3 rounded-xl border border-white/5">
                                           <div className="flex items-center gap-3">
@@ -829,6 +888,7 @@
                                               <div className="text-[10px] font-bold text-gray-500 bg-black/50 px-2 py-1 rounded mr-2">PIN: {u.pin}</div>
                                               {u.username !== 'AYOUB' && (
                                                   <div className="flex gap-1">
+                                                      <button onClick={() => handleStartEditUser(u)} className="text-blue-400 hover:bg-blue-500/20 p-2 rounded transition"><Edit2 className="w-4 h-4"/></button>
                                                       <button onClick={() => handleToggleBan(u.id, u.isBanned)} className={`p-2 rounded transition ${u.isBanned ? 'bg-amber-500/20 text-amber-500 hover:bg-amber-500/30' : 'text-gray-400 hover:bg-gray-800'}`}>
                                                           {u.isBanned ? <Unlock className="w-4 h-4"/> : <Ban className="w-4 h-4"/>}
                                                       </button>
@@ -857,8 +917,8 @@
               <PullToRefresh onRefresh={loadPersonalData}>
                   <div className="space-y-6 pb-32 animate-fade-in relative">
                     {!canEdit && (
-                        <div className="bg-blue-500/20 border border-blue-500/50 p-3 rounded-xl text-blue-400 text-xs font-bold flex items-center gap-2 mb-4">
-                            <Activity className="w-4 h-4 flex-shrink-0"/> Lesemodus: Daten von {viewingUser.username}.
+                        <div className="bg-blue-500/20 border border-blue-500/50 p-3 rounded-xl text-blue-400 text-xs font-bold flex items-center gap-2 mb-4 shadow-lg backdrop-blur-md">
+                            <Activity className="w-4 h-4 flex-shrink-0"/> Lesemodus: Du betrachtest die Daten von {viewingUser.username}.
                         </div>
                     )}
 
@@ -873,7 +933,7 @@
                                 {isWorkoutActive ? <StopCircle className="w-6 h-6" /> : <Play className="w-6 h-6 ml-1" />}
                             </button>
                             <div>
-                                <h3 className="text-white font-bold text-lg tabular-nums">{isWorkoutActive ? formatTime(elapsedTime) : 'Session'}</h3>
+                                <h3 className="text-white font-bold text-lg tabular-nums">{isWorkoutActive ? formatWorkoutTime(elapsedTime) : 'Session'}</h3>
                                 <p className="text-[10px] text-gray-400 uppercase tracking-wide">{isWorkoutActive ? 'Aktiv' : 'Starten'}</p>
                             </div>
                         </div>
@@ -995,16 +1055,21 @@
                                     {[60, 90, 120].map(secs => <button key={secs} onClick={() => startRestTimer(secs)} className={`px-2 py-1 text-[10px] font-bold rounded-md border ${restDuration === secs ? 'bg-amber-500/20 text-amber-400 border-amber-500/50' : 'bg-transparent text-gray-500 border-white/10 hover:text-white'}`}>{secs}s</button>)}
                                 </div>
                             </div>
-                            <div className="flex items-center gap-8 py-2">
-                                <button onClick={() => { setRestTimeRemaining(restDuration); setIsRestTimerActive(false); }} className="p-3 bg-white/5 rounded-full hover:bg-white/10 text-gray-400 transition"><RotateCcw className="w-5 h-5" /></button>
-                                <div className="relative flex items-center justify-center min-w-[120px]">
-                                    <div className={`text-5xl font-black tabular-nums transition-colors ${isRestFinished ? 'text-lime-400 animate-pulse' : 'text-white'}`}>{formatTime(restTimeRemaining)}</div>
+                            
+                            <div className="flex w-full items-center justify-between sm:justify-center sm:gap-12 py-2 px-1">
+                                <button onClick={() => { setRestTimeRemaining(restDuration); setIsRestTimerActive(false); }} className="p-3 bg-white/5 rounded-full hover:bg-white/10 text-gray-400 transition flex-shrink-0"><RotateCcw className="w-5 h-5" /></button>
+                                
+                                <div className="relative flex items-center justify-center flex-1">
+                                    <div className={`text-5xl font-black tabular-nums tracking-tighter transition-colors ${isRestFinished ? 'text-lime-400 animate-pulse' : 'text-white'}`}>
+                                        {formatRestTime(restTimeRemaining)}
+                                    </div>
                                     {isRestFinished && <div className="absolute -bottom-6 text-xs text-lime-400 font-bold uppercase tracking-widest whitespace-nowrap">Go! Nächster Satz</div>}
                                 </div>
+                                
                                 <button onClick={() => {
                                     if(isRestTimerActive) setIsRestTimerActive(false);
                                     else startRestTimer(restTimeRemaining || restDuration);
-                                }} className={`p-4 rounded-full shadow-lg transition ${isRestTimerActive ? 'bg-amber-500 text-black hover:bg-amber-400' : 'bg-lime-500 text-black hover:bg-lime-400'}`}>
+                                }} className={`p-4 rounded-full shadow-lg transition flex-shrink-0 ${isRestTimerActive ? 'bg-amber-500 text-black hover:bg-amber-400' : 'bg-lime-500 text-black hover:bg-lime-400'}`}>
                                     {isRestTimerActive ? <Pause className="w-6 h-6" fill="currentColor"/> : <Play className="w-6 h-6 ml-1" fill="currentColor"/>}
                                 </button>
                             </div>
@@ -1166,12 +1231,13 @@
                                                     {fullList.map(ex => {
                                                         const isSelected = newRoutineExercises.includes(ex);
                                                         return (
-                                                            <div key={ex} onClick={() => toggleExercise(ex)} className="flex items-center gap-2 p-2 hover:bg-white/5 rounded-lg cursor-pointer transition-colors">
+                                                            <label key={ex} className="flex items-center gap-2 p-2 hover:bg-white/5 rounded-lg cursor-pointer transition-colors">
+                                                                <input type="checkbox" checked={isSelected} onChange={() => toggleExercise(ex)} className="hidden" />
                                                                 <div className={`w-4 h-4 rounded border flex items-center justify-center transition ${isSelected ? 'bg-lime-500 border-lime-500' : 'border-white/20'}`}>
                                                                     {isSelected && <Check className="w-3 h-3 text-black" />}
                                                                 </div>
                                                                 <span className="text-sm text-gray-300 select-none">{ex}</span>
-                                                            </div>
+                                                            </label>
                                                         );
                                                     })}
                                                 </div>
