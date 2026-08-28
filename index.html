@@ -10,39 +10,36 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#050505">
     
-    <!-- EIGENES LOGO FÜR DEN HOMESCREEN -->
     <link rel="apple-touch-icon" href="Logo.PNG">
     <link rel="icon" type="image/png" href="Logo.PNG">
     
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Babel (Compiler für React) -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    
-    <!-- Custom Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@700&display=swap" rel="stylesheet">
     
     <style>
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-fade-in { animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .color-scheme-dark { color-scheme: dark; }
         .signature-font { font-family: 'Caveat', cursive; }
+        .timeline-line::before { content: ''; position: absolute; left: 0.375rem; top: 0.5rem; bottom: 0.5rem; width: 1px; background: rgba(255, 255, 255, 0.1); }
+        input[type="checkbox"] { accent-color: #84cc16; width: 1.25rem; height: 1.25rem; cursor: pointer; }
         
-        /* Timeline line for grouped sets */
-        .timeline-line::before {
-            content: ''; position: absolute; left: 0.375rem; top: 0.5rem; bottom: 0.5rem;
-            width: 1px; background: rgba(255, 255, 255, 0.1);
+        /* Apple Liquid Glass Basisklasse */
+        .liquid-glass {
+            background: rgba(255, 255, 255, 0.02);
+            backdrop-filter: blur(40px);
+            -webkit-backdrop-filter: blur(40px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-top: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 10px 40px -10px rgba(0,0,0,0.5);
         }
 
-        /* Checkbox Styling */
-        input[type="checkbox"] { accent-color: #84cc16; width: 1.25rem; height: 1.25rem; }
-        
         @media print {
             body { background: white !important; color: black !important; }
-            .no-print { display: none !important; }
+            .no-print, .liquid-glass::before, .liquid-glass::after { display: none !important; }
             .print-container { padding: 0 !important; margin: 0 !important; }
             .print-block { display: block !important; }
             .print-text-black { color: black !important; }
@@ -58,7 +55,7 @@
     <script type="text/babel" data-type="module">
         import React, { useState, useEffect, useRef, useMemo } from 'https://esm.sh/react@18';
         import { createRoot } from 'https://esm.sh/react-dom@18/client';
-        import { Mic, Activity, BarChart2, Layers, Plus, Check, Play, Square, Download, Calendar as CalendarIcon, Dumbbell, Settings, Clock, Loader2, AlertCircle, StopCircle, Zap, HeartPulse, Share, RefreshCcw, X, Edit2, Save, Trash2, ChevronLeft, ChevronRight, Pause, RotateCcw, Delete, Users, UserPlus, ChevronDown, ChevronUp, Bell, Vibrate, Copy, LogOut, Ban, Unlock, EyeOff } from 'https://esm.sh/lucide-react@0.292.0';
+        import { Mic, Activity, BarChart2, Layers, Plus, Check, Play, Square, Download, Calendar as CalendarIcon, Dumbbell, Settings, Clock, Loader2, AlertCircle, StopCircle, Zap, HeartPulse, Share, RefreshCcw, X, Edit2, Save, Trash2, ChevronLeft, ChevronRight, Pause, RotateCcw, Delete, Users, UserPlus, ChevronDown, ChevronUp, Bell, Vibrate, Copy, LogOut, Ban, Unlock, EyeOff, Timer, MapPin } from 'https://esm.sh/lucide-react@0.292.0';
         
         // Firebase Imports
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
@@ -89,46 +86,57 @@
             appId = typeof __app_id !== 'undefined' ? __app_id : 'liftpro-github';
         } catch (e) { console.error("Firebase Init Fehler", e); }
 
-        // --- KONSTANTEN (Datenbank) ---
-        const MUSCLE_GROUPS = ['Brust', 'Rücken', 'Beine', 'Schultern', 'Arme', 'Core', 'Cardio'];
+        // --- KONSTANTEN ---
+        const MUSCLE_GROUPS = ['Brust', 'Rücken', 'Beine', 'Schultern', 'Arme', 'Core'];
+        const CARDIO_TYPES = ['Laufen (Joggen)', 'Sprint-Intervalle', 'Radfahren (Outdoor)', 'Radfahren (Indoor)', 'Schwimmen', 'Rudern', 'Treppensteigen (Stairmaster)', 'Wandern / Gehen'];
+        
         const EXERCISES = {
           'Brust': ['Langhantel-Bankdrücken (Flach)', 'Langhantel-Bankdrücken (Schrägbank)', 'Langhantel-Bankdrücken (Negativbank)', 'Kurzhantel-Bankdrücken (Flach)', 'Kurzhantel-Bankdrücken (Schrägbank)', 'Kurzhantel-Bankdrücken (Negativbank)', 'Kurzhantel-Fliegende (Flys, Flach)', 'Kurzhantel-Fliegende (Schräg)', 'Fliegende am Kabelzug (High-to-Low)', 'Fliegende am Kabelzug (Mitte)', 'Fliegende am Kabelzug (Low-to-High)', 'Klassischer Liegestütz', 'Decline Push-up', 'Incline Push-up', 'Diamant-Liegestütz', 'Weite Liegestütze', 'Dips (Brustfokus)', 'Maschinen-Brustpresse (flach)', 'Maschinen-Brustpresse (schräg)', 'Butterfly / Pec Deck', 'Einarmiges Butterfly am Kabel', 'Kurzhantel-Überzüge', 'Überzüge an der Maschine/Kabel', 'Bodenpresse (Kurzhanteln)', 'Bodenpresse (Langhantel)', 'Squeeze Press (Kurzhanteln)', 'Ring Push-ups', 'Guillotine Press', 'Jammer Press', 'Smith-Machine Bankdrücken (Flach)', 'Smith-Machine Bankdrücken (Schräg)', 'Einarmiges Kurzhantel-Bankdrücken', 'Landmine Press (Brust)', 'Cable Chest Press', 'Pseudo Planche Push-ups'],
           'Rücken': ['Klimmzüge im Obergriff', 'Klimmzüge im Untergriff', 'Klimmzüge im Parallelgriff', 'Latziehen zur Brust (weiter Griff)', 'Latziehen zur Brust (enger Untergriff)', 'Latziehen im Neutralgriff', 'Latziehen mit gestreckten Armen', 'Vorgebeugtes Langhantel-Rudern (Obergriff)', 'Pendlay Row (Untergriff)', 'Einarmiges Kurzhantel-Rudern', 'T-Bar-Rudern', 'Rudern am Kabelzug (sitzend, eng)', 'Rudern am Kabelzug (weit)', 'Rudern am Kabelzug (mit Seil)', 'Maschinen-Rudern (brustgestützt, Obergriff)', 'Maschinen-Rudern (brustgestützt, Neutral)', 'Konventionelles Kreuzheben', 'Sumo-Kreuzheben', 'Rumänisches Kreuzheben (RDL)', 'Hyperextensions', 'Hyperextensions (Zusatzgewicht)', 'Good Mornings (Langhantel)', 'Schrägbank-Kurzhantel-Rudern', 'Meadows Row', 'Seal Row', 'Rack Pulls / Block Pulls', 'Face Pulls', 'Vorgebeugtes Seitheben (Kabelzug)', 'Einarmiges Latziehen', 'Pullover Maschine', 'Inverted Rows / Australian Pull-ups', 'Y-Raises', 'T-Raises', 'Einarmiges Rudern am Kabelzug (stehend)', 'Pendlay Row (explosiv)'],
           'Beine': ['Langhantel-Kniebeugen (Back Squat)', 'Frontkniebeugen', 'Goblet Squat', 'Hack Squat (Maschine)', '45-Grad-Beinpresse (mittig)', 'Beinpresse (Füße hoch)', 'Beinpresse (Füße tief)', 'Ausfallschritte nach vorne', 'Ausfallschritte nach hinten', 'Walking Lunges', 'Bulgarische Split Squats', 'Beinstrecker (Maschine)', 'Beinbeuger liegend (Maschine)', 'Beinbeuger sitzend (Maschine)', 'Beinbeuger stehend (einseitig)', 'Rumänisches Kreuzheben (Langhantel)', 'Rumänisches Kreuzheben (Kurzhanteln)', 'Hip Thrusts (Langhantel)', 'Hip Thrusts (Maschine)', 'Glute Bridges (Boden)', 'Einbeinige Glute Bridges', 'Wadenheben stehend (Maschine)', 'Wadenheben sitzend', 'Wadenheben an der Beinpresse', 'Einbeiniges Wadenheben', 'Sumo-Kniebeugen', 'Sissy Squats', 'Step-ups', 'Cossack Squats', 'Kettlebell Swings', 'Abduktoren-Maschine', 'Adduktoren-Maschine', 'Gestrecktes Kreuzheben', 'Box Squats', 'Bulgarian Split Squats (Smith-Machine)'],
           'Schultern': ['Schulterdrücken mit Langhantel', 'Schulterdrücken mit Kurzhanteln (sitzend)', 'Schulterdrücken mit Kurzhanteln (stehend)', 'Arnold Press', 'Seitheben mit Kurzhanteln (stehend)', 'Seitheben mit Kurzhanteln (sitzend)', 'Seitheben am Kabelzug', 'Seitheben an der Maschine', 'Frontheben mit Kurzhanteln', 'Plate Front Raise', 'Frontheben am Kabelzug', 'Rear Delt Flys (Kurzhanteln)', 'Vorgebeugtes Seitheben (Kabelzug)', 'Reverse Pec Deck (Maschine)', 'Face Pulls am Kabelzug (Seil)', 'Aufrechtes Rudern (Langhantel)', 'Aufrechtes Rudern (Kurzhanteln)', 'Aufrechtes Rudern (Kabelzug)', 'Push Press', 'Einarmige Landmine Press', 'Seated Shoulder Press Machine', 'Seated Dumbbell Clean and Press', 'High Pulls (Langhantel)', 'Y-Press', 'W-Press', 'Bradford Press', 'Cuban Press', 'Incline Lateral Raise', 'Einarmiges Seitheben in Seitenlage', 'Cable Upright Row (Seil)', 'Pike Push-ups', 'Handstand Push-ups', 'Scapular Push-ups', 'Z-Press', 'Overhead Squat'],
           'Arme': ['Langhantel-Bizepscurls', 'SZ-Stangen-Bizepscurls', 'Kurzhantel-Bizepscurls (stehend)', 'Kurzhantel-Bizepscurls (sitzend)', 'Hammercurls', 'Incline Dumbbell Curls', 'Konzentrationscurls', 'Curls am Kabelzug (Stange)', 'Curls am Kabelzug (Seil)', 'Scott-Curls / Preacher Curls', 'Preacher Curls (Maschine)', 'Konzentrationscurl (Kabelzug)', 'Spider Curls', 'Zottman Curls', 'Reverse Curls (Langhantel/SZ)', 'Reverse Curls (Kabelzug)', 'Drag Curls', 'Trizepsdrücken am Kabelzug (Seil)', 'Trizepsdrücken am Kabelzug (Stange/V-Griff)', 'Trizepsdrücken im Untergriff', 'Enges Bankdrücken', 'Skull Crushers (SZ-Stange)', 'Skull Crushers (Kurzhanteln)', 'Über-Kopf-Trizepsdrücken (Kurzhantel)', 'Über-Kopf-Trizepsdrücken (Kabelzug)', 'Trizeps-Kickbacks (Kurzhanteln)', 'Trizeps-Kickbacks (Kabelzug)', 'Dips (aufrecht/Trizeps)', 'Bankdips (Bench Dips)', 'Diamant-Liegestütz', 'Unterarm-Curls (Langhantel)', 'Reverse Unterarm-Curls (Langhantel)', 'Farmer\'s Walk', 'Handgripper', 'Plate Pinches'],
-          'Core': ['Klassische Crunches', 'Crunches auf dem Gymnastikball', 'Kneeling Cable Crunch', 'Sit-ups', 'Decline Sit-ups', 'Hanging Leg Raises', 'Hanging Knee Raises', 'Flat Leg Raises', 'Reverse Curls (Beckenheben)', 'Plank', 'Side Plank', 'Dynamischer Unterarmstütz', 'Russian Twists', 'Bicycle Crunches', 'Mountain Climbers', 'Flutter Kicks', 'Hollow Body Hold', 'Dead Bug', 'Bird-Dog', 'Ab Wheel Rollouts', 'Windshield Wipers', 'V-Ups', 'Toe Touches', 'Holzhacker (Woodchoppers)', 'Pallof Press', 'Dragon Flags', 'L-Sit', 'Seitlicher Crunch', 'Seitliches Oberkörperheben', 'Standing Cable Crunch', 'Weighted Plank', 'Sit-up mit Kurzhantel', 'Scissor Kicks', 'Einseitiger Farmer\'s Walk', 'Pike Crunches'],
-          'Cardio': ['Laufband', 'Fahrrad-Ergometer', 'Stairmaster', 'Rudergerät', 'Crosstrainer (Elliptical)', 'Assault Bike', 'Ski-Ergometer']
+          'Core': ['Klassische Crunches', 'Crunches auf dem Gymnastikball', 'Kneeling Cable Crunch', 'Sit-ups', 'Decline Sit-ups', 'Hanging Leg Raises', 'Hanging Knee Raises', 'Flat Leg Raises', 'Reverse Curls (Beckenheben)', 'Plank', 'Side Plank', 'Dynamischer Unterarmstütz', 'Russian Twists', 'Bicycle Crunches', 'Mountain Climbers', 'Flutter Kicks', 'Hollow Body Hold', 'Dead Bug', 'Bird-Dog', 'Ab Wheel Rollouts', 'Windshield Wipers', 'V-Ups', 'Toe Touches', 'Holzhacker (Woodchoppers)', 'Pallof Press', 'Dragon Flags', 'L-Sit', 'Seitlicher Crunch', 'Seitliches Oberkörperheben', 'Standing Cable Crunch', 'Weighted Plank', 'Sit-up mit Kurzhantel', 'Scissor Kicks', 'Einseitiger Farmer\'s Walk', 'Pike Crunches']
         };
         const SET_TYPES = ['Arbeitssatz', 'Aufwärmsatz', 'Dropset', 'Top-Set'];
 
-        // --- AUDIO ENGINE (Zuverlässig für Browser) ---
+        // --- AUDIO ENGINE (5 Sekunden Puls-Alarm) ---
         let audioCtx = null;
         const initAudio = () => {
             try {
                 if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 if (audioCtx.state === 'suspended') audioCtx.resume();
-            } catch(e) { console.error("Audio Context Init Error", e); }
+            } catch(e) { console.error("Audio Context Error", e); }
         };
 
-        const playTimerBeep = () => {
-            try {
-                if (!audioCtx) initAudio();
-                const osc = audioCtx.createOscillator();
-                const gainNode = audioCtx.createGain();
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(880, audioCtx.currentTime); 
-                gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
-                gainNode.gain.linearRampToValueAtTime(1, audioCtx.currentTime + 0.05);
-                gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.5);
-                osc.connect(gainNode); gainNode.connect(audioCtx.destination);
-                osc.start(); osc.stop(audioCtx.currentTime + 0.6);
-            } catch (e) { console.log("Audio blocked", e); }
+        const trigger5SecAlarm = (vibrationEnabled, soundEnabled) => {
+            if (vibrationEnabled && navigator.vibrate) {
+                // 5 Sekunden lang vibrieren (Pulsierend)
+                navigator.vibrate([500, 300, 500, 300, 500, 300, 500, 300, 500, 300, 500]);
+            }
+            if (soundEnabled) {
+                try {
+                    if (!audioCtx) initAudio();
+                    const now = audioCtx.currentTime;
+                    // Generiere 5 Beeps innerhalb von 5 Sekunden
+                    for(let i=0; i<5; i++) {
+                        const osc = audioCtx.createOscillator();
+                        const gain = audioCtx.createGain();
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(880, now + i); 
+                        gain.gain.setValueAtTime(0, now + i);
+                        gain.gain.linearRampToValueAtTime(1, now + i + 0.1);
+                        gain.gain.linearRampToValueAtTime(0, now + i + 0.5);
+                        osc.connect(gain); gain.connect(audioCtx.destination);
+                        osc.start(now + i); osc.stop(now + i + 0.6);
+                    }
+                } catch (e) { console.log("Audio blocked", e); }
+            }
         };
 
         // --- AUSGELAGERTE KOMPONENTEN ---
         const GlassCard = ({ children, className = '' }) => (
-            <div className={`bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl rounded-3xl p-5 ${className}`}>{children}</div>
+            <div className={`liquid-glass rounded-[2rem] p-5 relative z-10 ${className}`}>{children}</div>
         );
 
         const BrandLogo = () => (
@@ -141,7 +149,7 @@
             if (!message) return null;
             return (
                 <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] animate-fade-in no-print">
-                    <div className={`px-4 py-3 rounded-2xl shadow-2xl backdrop-blur-md border text-sm font-bold flex items-center gap-2 ${type === 'error' ? 'bg-red-500/20 border-red-500/50 text-red-400' : 'bg-lime-500/20 border-lime-500/50 text-lime-400'}`}>
+                    <div className={`px-4 py-3 rounded-2xl shadow-2xl backdrop-blur-2xl border text-sm font-bold flex items-center gap-2 ${type === 'error' ? 'bg-red-500/20 border-red-500/50 text-red-400' : 'bg-lime-500/20 border-lime-500/50 text-lime-400'}`}>
                         {type === 'error' ? <AlertCircle className="w-5 h-5" /> : <Check className="w-5 h-5" />}
                         {message}
                     </div>
@@ -196,6 +204,27 @@
             )
         };
 
+        const calculatePaceOrSpeed = (type, distanceKm, min, sec) => {
+            const dist = parseFloat(distanceKm);
+            const m = parseInt(min) || 0;
+            const s = parseInt(sec) || 0;
+            if (!dist || (m === 0 && s === 0)) return "-";
+            
+            const totalHours = (m + s/60) / 60;
+            const totalMinutes = m + s/60;
+
+            if (type.includes('Rad') || type.includes('Stairmaster')) {
+                // Geschwindigkeit km/h
+                return `${(dist / totalHours).toFixed(1)} km/h`;
+            } else {
+                // Pace min/km
+                const paceMinDecimal = totalMinutes / dist;
+                const paceMin = Math.floor(paceMinDecimal);
+                const paceSec = Math.round((paceMinDecimal - paceMin) * 60);
+                return `${paceMin}:${paceSec.toString().padStart(2, '0')} min/km`;
+            }
+        };
+
         // --- SMARTE GRUPPIERUNG DER ÜBUNGEN ---
         const GroupedWorkoutList = ({ dailyWorkouts, customExercises, editingSetId, editData, setEditingSetId, setEditData, handleUpdateSet, handleDeleteSet, defaultExpanded = true, canEdit }) => {
             const groupedExercises = useMemo(() => {
@@ -204,8 +233,9 @@
                 const sortedWorkouts = [...dailyWorkouts].reverse(); 
 
                 sortedWorkouts.forEach(w => {
-                    if (!map.has(w.exercise)) { map.set(w.exercise, []); keys.push(w.exercise); }
-                    map.get(w.exercise).push(w);
+                    const key = w.trackingMode === 'cardio' ? w.cardioType : w.exercise;
+                    if (!map.has(key)) { map.set(key, []); keys.push(key); }
+                    map.get(key).push(w);
                 });
                 
                 return keys.map(k => ({ exercise: k, sets: map.get(k) })).reverse(); 
@@ -214,7 +244,7 @@
             if (groupedExercises.length === 0) return <p className="text-gray-500 text-center py-6 text-sm print-text-black">Kein Training an diesem Tag.</p>;
 
             return (
-                <div className="space-y-3">
+                <div className="space-y-4">
                     {groupedExercises.map(group => (
                         <ExerciseGroup key={group.exercise} group={group} customExercises={customExercises} defaultExpanded={defaultExpanded}
                             editingSetId={editingSetId} editData={editData} setEditingSetId={setEditingSetId} canEdit={canEdit}
@@ -227,19 +257,32 @@
 
         const ExerciseGroup = ({ group, customExercises, defaultExpanded, editingSetId, editData, setEditingSetId, setEditData, handleUpdateSet, handleDeleteSet, canEdit }) => {
             const [isExpanded, setIsExpanded] = useState(defaultExpanded);
-            const maxWeight = Math.max(...group.sets.map(s => parseFloat(s.weight) || 0));
+            const isCardio = group.sets[0].trackingMode === 'cardio';
+
+            let groupSubText = "";
+            if (isCardio) {
+                const totalDist = group.sets.reduce((sum, s) => sum + (parseFloat(s.distance) || 0), 0);
+                groupSubText = `Gesamt: ${totalDist.toFixed(2)} km`;
+            } else {
+                const maxWeight = Math.max(...group.sets.map(s => parseFloat(s.weight) || 0));
+                groupSubText = `Max: ${maxWeight > 0 ? `${maxWeight} kg` : 'Bodyweight'}`;
+            }
 
             return (
-                <div className="bg-white/5 rounded-2xl border border-white/10 overflow-hidden print-card transition-all">
+                <div className="bg-white/5 rounded-3xl border border-white/10 overflow-hidden print-card transition-all">
                     <button onClick={() => setIsExpanded(!isExpanded)} className="w-full flex justify-between items-center p-4 hover:bg-white/10 transition-colors">
                         <div className="text-left flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-black/40 border border-white/10 flex flex-col items-center justify-center print:hidden shadow-inner flex-shrink-0">
-                                <span className="text-xs font-black text-lime-400">{group.sets.length}</span>
-                                <span className="text-[8px] text-gray-500 uppercase font-bold -mt-1">Sets</span>
+                            <div className={`w-10 h-10 rounded-full border border-white/10 flex flex-col items-center justify-center print:hidden shadow-inner flex-shrink-0 ${isCardio ? 'bg-blue-500/20' : 'bg-black/40'}`}>
+                                {isCardio ? <Activity className="w-4 h-4 text-blue-400"/> : (
+                                    <>
+                                        <span className="text-xs font-black text-lime-400 leading-none">{group.sets.length}</span>
+                                        <span className="text-[7px] text-gray-500 uppercase font-bold mt-0.5">Sets</span>
+                                    </>
+                                )}
                             </div>
                             <div>
                                 <div className="font-bold text-sm text-white print-text-black">{group.exercise}</div>
-                                <div className="text-[10px] text-gray-400 print-text-black">Max: {maxWeight > 0 ? `${maxWeight} kg` : 'Bodyweight'}</div>
+                                <div className="text-[10px] text-gray-400 print-text-black">{groupSubText}</div>
                             </div>
                         </div>
                         <div className="no-print">
@@ -254,8 +297,24 @@
                                     const isEditing = editingSetId === w.id;
                                     
                                     if (isEditing && canEdit) {
+                                        if (w.trackingMode === 'cardio') {
+                                            return (
+                                                <div key={w.id} className="bg-blue-900/40 p-3 rounded-2xl border border-blue-500/50 space-y-3 relative z-10 no-print ml-2 shadow-lg">
+                                                    <div className="flex justify-between items-center text-[10px] text-blue-400 font-bold uppercase mb-2">
+                                                        <span>Cardio bearbeiten</span><button onClick={() => setEditingSetId(null)}><X className="w-4 h-4 text-gray-400 hover:text-white" /></button>
+                                                    </div>
+                                                    <div className="flex gap-2">
+                                                        <input type="number" step="0.1" value={editData.distance} onChange={e => setEditData({...editData, distance: e.target.value})} className="flex-1 bg-black/60 text-white rounded-lg p-2 border border-white/20 outline-none text-sm font-bold" placeholder="km" />
+                                                        <input type="number" value={editData.durationMin} onChange={e => setEditData({...editData, durationMin: e.target.value})} className="w-16 bg-black/60 text-white rounded-lg p-2 border border-white/20 outline-none text-sm font-bold" placeholder="Min" />
+                                                        <input type="number" value={editData.durationSec} onChange={e => setEditData({...editData, durationSec: e.target.value})} className="w-16 bg-black/60 text-white rounded-lg p-2 border border-white/20 outline-none text-sm font-bold" placeholder="Sek" />
+                                                        <button onClick={handleUpdateSet} className="bg-blue-500 text-black p-2 rounded-lg font-bold hover:bg-blue-400 transition"><Save className="w-5 h-5" /></button>
+                                                    </div>
+                                                </div>
+                                            )
+                                        }
+
                                         return (
-                                            <div key={w.id} className="bg-lime-900/40 p-3 rounded-xl border border-lime-500/50 space-y-3 relative z-10 no-print ml-2 shadow-lg">
+                                            <div key={w.id} className="bg-lime-900/40 p-3 rounded-2xl border border-lime-500/50 space-y-3 relative z-10 no-print ml-2 shadow-lg">
                                                 <div className="flex justify-between items-center text-[10px] text-lime-400 font-bold uppercase mb-2">
                                                     <span>Satz bearbeiten</span><button onClick={() => setEditingSetId(null)}><X className="w-4 h-4 text-gray-400 hover:text-white" /></button>
                                                 </div>
@@ -283,18 +342,26 @@
                                     return (
                                         <div key={w.id} className="flex justify-between items-center group/set relative z-10 print-list-item py-1">
                                             <div className="flex items-center gap-3">
-                                                <div className="absolute -left-7 w-2.5 h-2.5 rounded-full bg-lime-500 shadow-[0_0_8px_#84cc16] border border-[#050505] print:border-white print:shadow-none"></div>
+                                                <div className={`absolute -left-7 w-2.5 h-2.5 rounded-full shadow-[0_0_8px] border border-[#050505] print:border-white print:shadow-none ${isCardio ? 'bg-blue-500 shadow-blue-500/80' : 'bg-lime-500 shadow-lime-500/80'}`}></div>
                                                 <div>
-                                                    <div className="text-[11px] font-bold text-amber-400 print-text-black">{w.setType}</div>
-                                                    <div className="text-[9px] text-gray-500 print-text-black">{w.timeString} {w.estimated1RM > 0 && `• 1RM: ${w.estimated1RM}kg`}</div>
+                                                    <div className={`text-[11px] font-bold print-text-black ${isCardio ? 'text-blue-400' : 'text-amber-400'}`}>
+                                                        {isCardio ? `${w.durationMin || 0}m ${w.durationSec || 0}s` : w.setType}
+                                                    </div>
+                                                    <div className="text-[9px] text-gray-500 print-text-black">{w.timeString} {w.estimated1RM > 0 && `• 1RM: ${w.estimated1RM}kg`} {w.pace && `• Pace: ${w.pace}`}</div>
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-4">
-                                                <div className="font-bold text-white text-sm print-text-black">{w.weight}kg × {w.reps}</div>
+                                                <div className="font-bold text-white text-sm print-text-black">
+                                                    {isCardio ? `${w.distance} km` : `${w.weight}kg × ${w.reps}`}
+                                                </div>
                                                 {canEdit && (
                                                     <div className="flex gap-1 opacity-0 group-hover/set:opacity-100 transition-opacity no-print">
-                                                        <button onClick={() => { setEditingSetId(w.id); setEditData({exercise:w.exercise,weight:w.weight,reps:w.reps}); }} className="text-blue-400 hover:bg-blue-500/20 p-1.5 rounded"><Edit2 className="w-3.5 h-3.5" /></button>
-                                                        <button onClick={() => handleDeleteSet(w.id)} className="text-red-500 hover:bg-red-500/20 p-1.5 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
+                                                        <button onClick={() => { 
+                                                            setEditingSetId(w.id); 
+                                                            if (isCardio) setEditData({ distance: w.distance, durationMin: w.durationMin, durationSec: w.durationSec });
+                                                            else setEditData({exercise:w.exercise,weight:w.weight,reps:w.reps}); 
+                                                        }} className="text-gray-400 hover:text-white p-1.5 rounded"><Edit2 className="w-3.5 h-3.5" /></button>
+                                                        <button onClick={() => handleDeleteSet(w.id)} className="text-red-500 hover:text-red-400 p-1.5 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
                                                     </div>
                                                 )}
                                             </div>
@@ -319,7 +386,6 @@
               setTimeout(() => setToast({ message: '', type: '' }), 3000);
           };
 
-          // Auth & Community System
           const [firebaseUser, setFirebaseUser] = useState(null);
           const [appUsers, setAppUsers] = useState([]);
           const [loggedInUser, setLoggedInUser] = useState(null); 
@@ -327,11 +393,9 @@
           const [authLoading, setAuthLoading] = useState(true);
           const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
           
-          // User Settings
           const [userSettings, setUserSettings] = useState({ sound: true, vibration: true });
 
-          // Registration & Login
-          const [loginStep, setLoginStep] = useState('username'); // 'username' | 'pin' | 'register'
+          const [loginStep, setLoginStep] = useState('username'); 
           const [loginUsername, setLoginUsername] = useState('');
           const [loginPin, setLoginPin] = useState('');
           const [regUsername, setRegUsername] = useState('');
@@ -347,20 +411,29 @@
           
           const [heatmapSettings, setHeatmapSettings] = useState({ exhausted: 24, recovering: 48 });
           const [isHeatmapModalOpen, setIsHeatmapModalOpen] = useState(false);
-          
           const [customExModal, setCustomExModal] = useState({ isOpen: false, muscle: '' });
           const [newCustomExName, setNewCustomExName] = useState('');
 
+          // Tracking States (Combined Kraft & Cardio)
+          const [trackingMode, setTrackingMode] = useState('kraft'); // 'kraft' | 'cardio'
           const [selectedStandard, setSelectedStandard] = useState('');
           const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+          
+          // Kraft
           const [muscle, setMuscle] = useState('');
           const [exercise, setExercise] = useState('');
           const [setType, setSetType] = useState('Arbeitssatz');
           const [weight, setWeight] = useState('');
           const [reps, setReps] = useState('');
           
+          // Cardio
+          const [cardioType, setCardioType] = useState('Laufen (Joggen)');
+          const [cardioDist, setCardioDist] = useState('');
+          const [cardioMin, setCardioMin] = useState('');
+          const [cardioSec, setCardioSec] = useState('');
+
           const [editingSetId, setEditingSetId] = useState(null);
-          const [editData, setEditData] = useState({ exercise: '', weight: '', reps: '' });
+          const [editData, setEditData] = useState({ exercise: '', weight: '', reps: '', distance: '', durationMin: '', durationSec: '' });
 
           const [isRoutineModalOpen, setIsRoutineModalOpen] = useState(false);
           const [newRoutineName, setNewRoutineName] = useState('');
@@ -388,7 +461,7 @@
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
                 else await signInAnonymously(auth);
               } catch (error) { 
-                  showToast("Auth-Fehler: Anonyme Anmeldung prüfen!", 'error'); 
+                  showToast("Auth-Fehler: Anonyme Anmeldung aktivieren!", 'error'); 
                   setAuthLoading(false); 
               }
             };
@@ -410,7 +483,6 @@
               return () => unsub();
           }, [firebaseUser]);
 
-          // --- ONLINE STATUS PULSE ---
           useEffect(() => {
               if (!loggedInUser || !firebaseUser || !db) return;
               const interval = setInterval(() => {
@@ -456,11 +528,10 @@
               return () => { if (cleanup) cleanup(); };
           }, [viewingUser]);
 
-          // --- AUTH LOGIC ---
           const processLogin = () => {
               const u = appUsers.find(u => u.username.toUpperCase() === loginUsername.toUpperCase());
               if (!u) { showToast('Nutzer nicht gefunden', 'error'); setLoginPin(''); setLoginStep('username'); return; }
-              if (u.isBanned) { showToast('Konto wurde vom Admin gesperrt!', 'error'); setLoginPin(''); setLoginStep('username'); return; }
+              if (u.isBanned) { showToast('Dein Konto wurde gesperrt!', 'error'); setLoginPin(''); setLoginStep('username'); return; }
               if (u.pin !== loginPin) { showToast('Falscher PIN', 'error'); setLoginPin(''); return; }
               setLoggedInUser(u);
               setViewingUser(u); 
@@ -486,7 +557,6 @@
               showToast("Erfolgreich abgemeldet");
           };
 
-          // --- ROBUSTE HINTERGRUND-TIMERS ---
           useEffect(() => {
             let interval;
             if (isWorkoutActive && workoutStartTime) {
@@ -503,8 +573,7 @@
                       setRestTimeRemaining(remain);
                       if (remain === 0) {
                           setIsRestTimerActive(false);
-                          if (userSettings.vibration && navigator.vibrate) navigator.vibrate([300, 150, 300]);
-                          if (userSettings.sound) playTimerBeep();
+                          trigger5SecAlarm(userSettings.vibration, userSettings.sound);
                       }
                   }, 250); 
               }
@@ -512,25 +581,18 @@
           }, [isRestTimerActive, restEndTime, userSettings]);
 
           const startRestTimer = (secs) => {
-              initAudio(); // Audio freigeben
+              initAudio(); 
               setRestDuration(secs);
               setRestTimeRemaining(secs);
               setRestEndTime(Date.now() + secs * 1000);
               setIsRestTimerActive(true);
           };
 
-          const formatTime = (secs) => `${Math.floor(secs / 60)}:${(secs % 60).toString().padStart(2, '0')}`;
+          const formatTime = (secs) => `${Math.floor(secs / 3600 > 0 ? secs/3600 : 0).toString().padStart(2,'0')}:${Math.floor((secs%3600) / 60).toString().padStart(2, '0')}:${(secs % 60).toString().padStart(2, '0')}`;
 
           const toggleWorkout = () => {
             if (isWorkoutActive) { setIsWorkoutActive(false); setRestTimeRemaining(0); setIsRestTimerActive(false); setRestEndTime(null); } 
-            else { setWorkoutStartTime(Date.now()); setElapsedTime(0); setIsWorkoutActive(true); }
-          };
-
-          const calculate1RM = (w, r) => {
-              const wNum = parseFloat(w), rNum = parseInt(r);
-              if (!wNum || !rNum || rNum <= 0) return 0;
-              if (rNum === 1) return wNum;
-              return Math.round(wNum * (1 + (rNum / 30)));
+            else { setWorkoutStartTime(Date.now() - elapsedTime * 1000); setIsWorkoutActive(true); }
           };
 
           const canEdit = loggedInUser && viewingUser && (loggedInUser.role === 'admin' || loggedInUser.username === viewingUser.username);
@@ -565,8 +627,8 @@
                   await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'app_users', loggedInUser.id), { isPrivate });
                   setLoggedInUser({...loggedInUser, isPrivate});
                   if(loggedInUser.id === viewingUser.id) setViewingUser({...viewingUser, isPrivate});
-                  showToast(isPrivate ? "Profil ist nun versteckt" : "Profil ist nun öffentlich");
-              } catch(e) { showToast("Fehler beim Speichern", "error"); }
+                  showToast(isPrivate ? "Profil versteckt" : "Profil öffentlich");
+              } catch(e) { showToast("Fehler", "error"); }
           };
 
           const handleAddCustomExercise = async () => {
@@ -574,13 +636,13 @@
               if (!canEdit) return showToast("Keine Berechtigung", "error");
               const updated = { ...customExercises };
               if (!updated[customExModal.muscle]) updated[customExModal.muscle] = [];
-              if (updated[customExModal.muscle].includes(newCustomExName)) return showToast("Übung existiert bereits", "error");
+              if (updated[customExModal.muscle].includes(newCustomExName)) return showToast("Existiert bereits", "error");
               
               updated[customExModal.muscle].push(newCustomExName);
               try {
                   await setDoc(doc(db, 'artifacts', appId, 'users', viewingUser.username, 'settings', 'custom_exercises'), { data: updated }, { merge: true });
-                  setNewCustomExName(''); showToast("Eigene Übung hinzugefügt!");
-              } catch (e) { showToast("Fehler beim Speichern", "error"); }
+                  setNewCustomExName(''); showToast("Übung hinzugefügt!");
+              } catch (e) { showToast("Fehler", "error"); }
           };
 
           const handleDeleteCustomExercise = async (exName) => {
@@ -594,22 +656,34 @@
           };
 
           const handleSaveSet = async () => {
-            if (!exercise || !reps || !firebaseUser || !db || !canEdit) return;
-            let finalMuscle = muscle;
-            if (selectedStandard) {
-                for (const [group, exList] of Object.entries(EXERCISES)) { 
-                    const fullList = [...exList, ...(customExercises[group]||[])];
-                    if (fullList.includes(exercise)) { finalMuscle = group; break; } 
-                }
-            }
-            const newSetData = {
-              date, muscle: finalMuscle || 'Core', exercise, setType, weight: weight || '0', reps, estimated1RM: calculate1RM(weight, reps),
-              timestamp: Date.now(), timeString: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+            if (!firebaseUser || !db || !canEdit) return;
+            
+            initAudio(); // Audio Unlock per User-Klick
+            
+            let newSetData = {
+                date, trackingMode, timestamp: Date.now(), timeString: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
             };
+
+            if (trackingMode === 'kraft') {
+                if (!exercise || !reps) return;
+                let finalMuscle = muscle;
+                if (selectedStandard) {
+                    for (const [group, exList] of Object.entries(EXERCISES)) { 
+                        const fullList = [...exList, ...(customExercises[group]||[])];
+                        if (fullList.includes(exercise)) { finalMuscle = group; break; } 
+                    }
+                }
+                newSetData = { ...newSetData, muscle: finalMuscle || 'Core', exercise, setType, weight: weight || '0', reps, estimated1RM: calculate1RM(weight, reps) };
+            } else {
+                if (!cardioDist && (!cardioMin && !cardioSec)) return;
+                newSetData = { ...newSetData, muscle: 'Cardio', cardioType, exercise: cardioType, distance: cardioDist || '0', durationMin: cardioMin || '0', durationSec: cardioSec || '0', pace: calculatePaceOrSpeed(cardioType, cardioDist, cardioMin, cardioSec) };
+            }
+
             try {
-                initAudio(); // Audio freischalten
                 await addDoc(collection(db, 'artifacts', appId, 'users', viewingUser.username, 'workouts'), newSetData);
-                showToast("Geloggt!"); setWeight(''); setReps(''); startRestTimer(restDuration);
+                showToast("Geloggt!"); 
+                if(trackingMode === 'kraft') { setWeight(''); setReps(''); startRestTimer(restDuration); }
+                else { setCardioDist(''); setCardioMin(''); setCardioSec(''); }
             } catch (error) { showToast("Speicherfehler", 'error'); }
           };
 
@@ -622,9 +696,11 @@
           const handleUpdateSet = async () => {
               if(!firebaseUser || !db || !editingSetId || !canEdit) return;
               try {
-                  await updateDoc(doc(db, 'artifacts', appId, 'users', viewingUser.username, 'workouts', editingSetId), {
-                      exercise: editData.exercise, weight: editData.weight, reps: editData.reps, estimated1RM: calculate1RM(editData.weight, editData.reps)
-                  });
+                  const toUpdate = editData.distance !== undefined ? 
+                      { distance: editData.distance, durationMin: editData.durationMin, durationSec: editData.durationSec, pace: calculatePaceOrSpeed('Cardio', editData.distance, editData.durationMin, editData.durationSec) } :
+                      { exercise: editData.exercise, weight: editData.weight, reps: editData.reps, estimated1RM: calculate1RM(editData.weight, editData.reps) };
+                  
+                  await updateDoc(doc(db, 'artifacts', appId, 'users', viewingUser.username, 'workouts', editingSetId), toUpdate);
                   setEditingSetId(null); showToast("Aktualisiert");
               } catch (error) { showToast("Fehler", 'error'); }
           };
@@ -656,7 +732,9 @@
                   <div className="min-h-screen flex flex-col items-center justify-center p-5 relative overflow-hidden">
                       <Toast message={toast.message} type={toast.type} />
                       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-900/30 rounded-full blur-[100px] z-0"></div>
-                      <GlassCard className="w-full max-w-sm relative z-10 !p-8 flex flex-col items-center text-center">
+                      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-900/20 rounded-full blur-[100px] z-0"></div>
+                      
+                      <GlassCard className="w-full max-w-sm relative z-10 !p-8 flex flex-col items-center text-center backdrop-blur-3xl">
                           <BrandLogo />
                           <h1 className="text-4xl font-black text-white tracking-tight mt-4 mb-1">Lift<span className="text-lime-400">Pro</span></h1>
                           <span className="text-[18px] signature-font font-bold tracking-wide block mb-8" style={{ background: 'linear-gradient(to right, #a3e635, #3b82f6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Made by Ayoub</span>
@@ -664,8 +742,8 @@
                           {loginStep === 'username' ? (
                               <div className="w-full animate-fade-in">
                                   <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Benutzername</label>
-                                  <input type="text" value={loginUsername} onChange={e=>setLoginUsername(e.target.value)} placeholder="z.B. AYOUB" className="w-full bg-black/40 text-white rounded-xl p-4 border border-white/20 outline-none text-center font-bold tracking-widest uppercase mb-4" />
-                                  <button onClick={() => { if(loginUsername) setLoginStep('pin') }} className="w-full bg-lime-500 text-black font-bold p-4 rounded-xl shadow-lg active:scale-95 transition mb-4">Anmelden</button>
+                                  <input type="text" value={loginUsername} onChange={e=>setLoginUsername(e.target.value)} placeholder="z.B. AYOUB" className="w-full bg-black/40 text-white rounded-xl p-4 border border-white/10 outline-none text-center font-bold tracking-widest uppercase mb-4 focus:border-lime-500/50 transition" />
+                                  <button onClick={() => { if(loginUsername) setLoginStep('pin') }} className="w-full bg-lime-500 text-black font-bold p-4 rounded-xl shadow-[0_5px_20px_rgba(132,204,22,0.3)] active:scale-95 transition mb-6">Anmelden</button>
                                   <button onClick={() => { setLoginStep('register'); setRegUsername(''); setRegPin(''); }} className="text-xs text-lime-400 font-bold hover:text-white transition">Noch kein Konto? Registrieren</button>
                               </div>
                           ) : loginStep === 'pin' ? (
@@ -682,10 +760,10 @@
                               <div className="w-full animate-fade-in">
                                   <div className="flex justify-between items-center mb-4">
                                       <button onClick={() => { setLoginStep('username'); setRegUsername(''); setRegPin(''); }}><ChevronLeft className="w-5 h-5 text-gray-400"/></button>
-                                      <span className="font-bold uppercase text-white tracking-widest">Konto erstellen</span>
+                                      <span className="font-bold uppercase text-white tracking-widest text-sm">Konto erstellen</span>
                                       <div className="w-5 h-5"></div>
                                   </div>
-                                  <input type="text" value={regUsername} onChange={e=>setRegUsername(e.target.value)} placeholder="Neuer Benutzername" className="w-full bg-black/40 text-white rounded-xl p-3 border border-white/20 outline-none text-center font-bold tracking-widest uppercase mb-4" />
+                                  <input type="text" value={regUsername} onChange={e=>setRegUsername(e.target.value)} placeholder="Wunsch-Name" className="w-full bg-black/40 text-white rounded-xl p-3 border border-white/10 outline-none text-center font-bold tracking-widest uppercase mb-4" />
                                   <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Wunsch-PIN (4 Ziffern)</label>
                                   <Numpad pin={regPin} setPin={setRegPin} onSubmit={handleRegister} />
                               </div>
@@ -731,7 +809,7 @@
                               <input type="text" placeholder="Name" value={adminNewUName} onChange={e=>setAdminNewUName(e.target.value)} className="flex-2 bg-black/40 text-white rounded-lg p-3 border border-white/20 outline-none w-full uppercase" />
                               <input type="number" placeholder="PIN" value={adminNewUPin} onChange={e=>setAdminNewUPin(e.target.value.slice(0,4))} className="flex-1 bg-black/40 text-white rounded-lg p-3 border border-white/20 outline-none w-24 text-center" />
                           </div>
-                          <button onClick={handleAddUser} className="w-full bg-blue-500 text-black font-bold p-3 rounded-lg flex items-center justify-center gap-2"><UserPlus className="w-4 h-4"/> Anlegen</button>
+                          <button onClick={handleAddUser} className="w-full bg-blue-500 text-black font-bold p-3 rounded-lg flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(59,130,246,0.3)]"><UserPlus className="w-4 h-4"/> Anlegen</button>
                       </GlassCard>
                       <GlassCard>
                           <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Aktive Nutzer ({appUsers.length})</h3>
@@ -751,10 +829,10 @@
                                               <div className="text-[10px] font-bold text-gray-500 bg-black/50 px-2 py-1 rounded mr-2">PIN: {u.pin}</div>
                                               {u.username !== 'AYOUB' && (
                                                   <div className="flex gap-1">
-                                                      <button onClick={() => handleToggleBan(u.id, u.isBanned)} className={`p-2 rounded ${u.isBanned ? 'bg-amber-500/20 text-amber-500 hover:bg-amber-500/30' : 'text-gray-400 hover:bg-gray-800'}`}>
+                                                      <button onClick={() => handleToggleBan(u.id, u.isBanned)} className={`p-2 rounded transition ${u.isBanned ? 'bg-amber-500/20 text-amber-500 hover:bg-amber-500/30' : 'text-gray-400 hover:bg-gray-800'}`}>
                                                           {u.isBanned ? <Unlock className="w-4 h-4"/> : <Ban className="w-4 h-4"/>}
                                                       </button>
-                                                      <button onClick={() => handleDeleteUser(u.id, u.username)} className="text-red-500 p-2 hover:bg-red-500/20 rounded"><Trash2 className="w-4 h-4"/></button>
+                                                      <button onClick={() => handleDeleteUser(u.id, u.username)} className="text-red-500 p-2 hover:bg-red-500/20 rounded transition"><Trash2 className="w-4 h-4"/></button>
                                                   </div>
                                               )}
                                           </div>
@@ -769,7 +847,7 @@
 
           const renderTabEingabe = () => {
             const dailyWorkouts = workouts.filter(w => w.date === date);
-            const lastPerformance = exercise ? workouts.find(w => w.exercise === exercise && w.date !== date) : null;
+            const lastPerformance = trackingMode === 'kraft' && exercise ? workouts.find(w => w.exercise === exercise && w.date !== date) : null;
             const isRestFinished = restTimeRemaining === 0 && !isRestTimerActive && dailyWorkouts.length > 0;
 
             const availableExercises = muscle ? [...(EXERCISES[muscle] || []), ...(customExercises[muscle] || [])].sort() : [];
@@ -780,9 +858,14 @@
                   <div className="space-y-6 pb-32 animate-fade-in relative">
                     {!canEdit && (
                         <div className="bg-blue-500/20 border border-blue-500/50 p-3 rounded-xl text-blue-400 text-xs font-bold flex items-center gap-2 mb-4">
-                            <Activity className="w-4 h-4 flex-shrink-0"/> Lesemodus: Du betrachtest die Daten von {viewingUser.username}.
+                            <Activity className="w-4 h-4 flex-shrink-0"/> Lesemodus: Daten von {viewingUser.username}.
                         </div>
                     )}
+
+                    <div className="flex bg-black/40 p-1.5 rounded-2xl border border-white/10 backdrop-blur-md relative z-10">
+                        <button onClick={() => setTrackingMode('kraft')} className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition-all ${trackingMode === 'kraft' ? 'bg-white/10 text-lime-400 shadow-md border border-white/10' : 'text-gray-500 hover:text-white'}`}>Krafttraining</button>
+                        <button onClick={() => setTrackingMode('cardio')} className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition-all ${trackingMode === 'cardio' ? 'bg-white/10 text-blue-400 shadow-md border border-white/10' : 'text-gray-500 hover:text-white'}`}>Ausdauer</button>
+                    </div>
 
                     <GlassCard className="flex items-center justify-between !p-4 relative overflow-hidden">
                         <div className="flex items-center gap-4 z-10">
@@ -790,14 +873,14 @@
                                 {isWorkoutActive ? <StopCircle className="w-6 h-6" /> : <Play className="w-6 h-6 ml-1" />}
                             </button>
                             <div>
-                                <h3 className="text-white font-bold text-lg">{isWorkoutActive ? formatTime(elapsedTime) : 'Workout'}</h3>
-                                <p className="text-[10px] text-gray-400 uppercase tracking-wide">{isWorkoutActive ? 'Session aktiv' : 'Starten'}</p>
+                                <h3 className="text-white font-bold text-lg tabular-nums">{isWorkoutActive ? formatTime(elapsedTime) : 'Session'}</h3>
+                                <p className="text-[10px] text-gray-400 uppercase tracking-wide">{isWorkoutActive ? 'Aktiv' : 'Starten'}</p>
                             </div>
                         </div>
-                        {isWorkoutActive && <div className="absolute -right-10 -top-10 w-32 h-32 bg-lime-500/10 rounded-full blur-2xl animate-pulse pointer-events-none"></div>}
+                        {isWorkoutActive && <div className={`absolute -right-10 -top-10 w-32 h-32 rounded-full blur-2xl animate-pulse pointer-events-none ${trackingMode === 'cardio' ? 'bg-blue-500/10' : 'bg-lime-500/10'}`}></div>}
                     </GlassCard>
 
-                    {canEdit && (
+                    {canEdit && trackingMode === 'kraft' && (
                         <GlassCard className="space-y-5">
                           <input type="date" value={date} onChange={e => setDate(e.target.value)} className="bg-transparent text-white font-bold text-sm outline-none color-scheme-dark mb-2 block" />
 
@@ -873,7 +956,38 @@
                         </GlassCard>
                     )}
 
-                    {canEdit && (isRestTimerActive || restTimeRemaining > 0 || isRestFinished) && (
+                    {canEdit && trackingMode === 'cardio' && (
+                        <GlassCard className="space-y-5 animate-fade-in">
+                            <input type="date" value={date} onChange={e => setDate(e.target.value)} className="bg-transparent text-white font-bold text-sm outline-none color-scheme-dark mb-2 block" />
+                            <div className="space-y-2">
+                                <label className="block text-[10px] font-bold text-blue-400 uppercase tracking-wider">Aktivität</label>
+                                <select value={cardioType} onChange={e => setCardioType(e.target.value)} className="w-full bg-black/40 text-white rounded-xl p-3 border border-white/10 outline-none focus:border-blue-500/50 transition">
+                                    {CARDIO_TYPES.map(c => <option key={c} value={c}>{c}</option>)}
+                                </select>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-3 pt-4 border-t border-white/10">
+                                <div className="relative col-span-2">
+                                    <span className="absolute top-3 left-4 text-xs text-gray-400 font-bold uppercase tracking-widest">Distanz (km)</span>
+                                    <input type="number" step="0.01" value={cardioDist} onChange={e => setCardioDist(e.target.value)} className="w-full bg-black/40 text-white rounded-xl p-4 pt-8 border border-white/10 outline-none text-2xl font-black text-right" placeholder="0.00" />
+                                </div>
+                                <div className="relative">
+                                    <span className="absolute top-2 left-3 text-[10px] text-gray-500 uppercase font-bold">Min</span>
+                                    <input type="number" value={cardioMin} onChange={e => setCardioMin(e.target.value)} className="w-full bg-black/40 text-white rounded-xl p-3 pt-6 border border-white/10 outline-none text-xl font-bold text-center" placeholder="0" />
+                                </div>
+                                <div className="relative">
+                                    <span className="absolute top-2 left-3 text-[10px] text-gray-500 uppercase font-bold">Sek</span>
+                                    <input type="number" max="59" value={cardioSec} onChange={e => setCardioSec(e.target.value)} className="w-full bg-black/40 text-white rounded-xl p-3 pt-6 border border-white/10 outline-none text-xl font-bold text-center" placeholder="0" />
+                                </div>
+                            </div>
+                            
+                            <button onClick={handleSaveSet} disabled={(!cardioDist && !cardioMin && !cardioSec)} className="w-full bg-blue-500 hover:bg-blue-400 disabled:opacity-50 text-black font-bold p-4 rounded-xl shadow-[0_0_15px_rgba(59,130,246,0.3)] flex items-center justify-center transition-all active:scale-95 gap-2">
+                                <MapPin className="w-5 h-5" /> Cardio Speichern
+                            </button>
+                        </GlassCard>
+                    )}
+
+                    {canEdit && trackingMode === 'kraft' && (isRestTimerActive || restTimeRemaining > 0 || isRestFinished) && (
                         <GlassCard className={`flex flex-col items-center transition-all duration-500 ${isRestFinished ? 'border-lime-500/50 bg-lime-500/10 shadow-[0_0_30px_rgba(132,204,22,0.2)]' : ''}`}>
                             <div className="flex w-full justify-between items-center mb-4 border-b border-white/10 pb-3">
                                 <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2"><Clock className="w-4 h-4"/> Pausen-Manager</h3>
@@ -883,7 +997,7 @@
                             </div>
                             <div className="flex items-center gap-8 py-2">
                                 <button onClick={() => { setRestTimeRemaining(restDuration); setIsRestTimerActive(false); }} className="p-3 bg-white/5 rounded-full hover:bg-white/10 text-gray-400 transition"><RotateCcw className="w-5 h-5" /></button>
-                                <div className="relative flex items-center justify-center">
+                                <div className="relative flex items-center justify-center min-w-[120px]">
                                     <div className={`text-5xl font-black tabular-nums transition-colors ${isRestFinished ? 'text-lime-400 animate-pulse' : 'text-white'}`}>{formatTime(restTimeRemaining)}</div>
                                     {isRestFinished && <div className="absolute -bottom-6 text-xs text-lime-400 font-bold uppercase tracking-widest whitespace-nowrap">Go! Nächster Satz</div>}
                                 </div>
@@ -1278,13 +1392,14 @@
                                   <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Pausen-Alarm Einstellungen</h4>
                                   <div className="bg-black/40 rounded-xl p-3 space-y-3">
                                       <label className="flex items-center justify-between cursor-pointer">
-                                          <span className="text-sm flex items-center gap-2 text-white"><Bell className="w-4 h-4"/> Signalton spielen</span>
+                                          <span className="text-sm flex items-center gap-2 text-white"><Bell className="w-4 h-4"/> Signalton (5 Sek)</span>
                                           <input type="checkbox" checked={userSettings.sound} onChange={(e) => saveUserSettings({ sound: e.target.checked })} />
                                       </label>
                                       <label className="flex items-center justify-between cursor-pointer">
-                                          <span className="text-sm flex items-center gap-2 text-white"><Vibrate className="w-4 h-4"/> Smartphone vibriert</span>
+                                          <span className="text-sm flex items-center gap-2 text-white"><Vibrate className="w-4 h-4"/> Vibration (nur Android)</span>
                                           <input type="checkbox" checked={userSettings.vibration} onChange={(e) => saveUserSettings({ vibration: e.target.checked })} />
                                       </label>
+                                      <p className="text-[9px] text-gray-500">Apple blockiert Vibration im Web leider komplett.</p>
                                   </div>
                               </div>
 
@@ -1295,19 +1410,17 @@
                                           <span className="text-sm flex items-center gap-2 text-white"><EyeOff className="w-4 h-4"/> Profil verbergen</span>
                                           <input type="checkbox" checked={loggedInUser?.isPrivate || false} onChange={(e) => togglePrivacy(e.target.checked)} />
                                       </label>
-                                      <p className="text-[9px] text-gray-500 mt-1">Andere Nutzer können deine Trainingsdaten nicht mehr einsehen.</p>
+                                      <p className="text-[9px] text-gray-500">Andere Nutzer können deine Trainingsdaten nicht mehr ansehen.</p>
                                   </div>
                               </div>
 
                               <div>
-                                  <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Community (Andere Profile ansehen)</h4>
+                                  <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Community ansehen</h4>
                                   <select value={viewingUser?.username} onChange={(e) => setViewingUser(appUsers.find(u => u.username === e.target.value))} className="w-full bg-black/40 text-white rounded-xl p-3 border border-white/20 outline-none text-sm font-bold uppercase">
-                                      {/* Zeige Nutzer, die NICHT privat sind, ODER den eingeloggten Nutzer selbst, ODER alle wenn Admin */}
                                       {appUsers.filter(u => !u.isPrivate || u.username === loggedInUser.username || loggedInUser.role === 'admin').map(u => (
                                           <option key={u.id} value={u.username}>{u.username} {u.username === loggedInUser.username ? '(Ich)' : ''}</option>
                                       ))}
                                   </select>
-                                  <p className="text-[9px] text-gray-500 mt-2">Du bist eingeloggt als <strong className="text-white">{loggedInUser.username}</strong>.</p>
                               </div>
 
                               <button onClick={handleLogout} className="w-full flex justify-center items-center gap-2 text-red-500 hover:bg-red-500/10 p-3 rounded-xl font-bold transition">
@@ -1344,7 +1457,7 @@
                   </div>
               )}
 
-              <header className="sticky top-0 z-20 px-5 py-4 bg-[#050505]/60 backdrop-blur-xl border-b border-white/5 no-print">
+              <header className="sticky top-0 z-20 px-5 py-4 bg-[#050505]/40 backdrop-blur-3xl border-b border-white/10 no-print">
                 <div className="flex items-center justify-between max-w-2xl mx-auto">
                   <div className="flex items-center gap-3">
                     <BrandLogo />
@@ -1375,16 +1488,16 @@
               </main>
 
               <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[95%] max-w-[450px] z-50 no-print">
-                <nav className="bg-black/80 backdrop-blur-3xl border border-white/10 rounded-full flex justify-between items-center px-3 py-2 shadow-2xl shadow-black/80">
-                  <button onClick={() => setActiveTab('heatmap')} className={`flex flex-col items-center justify-center w-12 h-12 rounded-2xl transition-all duration-300 ${activeTab === 'heatmap' ? 'text-lime-400 bg-white/5' : 'text-gray-500 hover:text-gray-300'}`}><Activity className="w-5 h-5" /></button>
-                  <button onClick={() => setActiveTab('routinen')} className={`flex flex-col items-center justify-center w-12 h-12 rounded-2xl transition-all duration-300 ${activeTab === 'routinen' ? 'text-lime-400 bg-white/5' : 'text-gray-500 hover:text-gray-300'}`}><Layers className="w-5 h-5" /></button>
+                <nav className="liquid-glass rounded-[2rem] flex justify-between items-center px-3 py-2">
+                  <button onClick={() => setActiveTab('heatmap')} className={`flex flex-col items-center justify-center w-12 h-12 rounded-2xl transition-all duration-300 ${activeTab === 'heatmap' ? 'text-lime-400 bg-white/10' : 'text-gray-500 hover:text-gray-300'}`}><Activity className="w-5 h-5" /></button>
+                  <button onClick={() => setActiveTab('routinen')} className={`flex flex-col items-center justify-center w-12 h-12 rounded-2xl transition-all duration-300 ${activeTab === 'routinen' ? 'text-lime-400 bg-white/10' : 'text-gray-500 hover:text-gray-300'}`}><Layers className="w-5 h-5" /></button>
                   <button onClick={() => setActiveTab('eingabe')} className="relative group mx-1">
-                    <div className={`relative w-14 h-14 bg-lime-500 text-black rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(132,204,22,0.5)] transform transition-transform active:scale-95 border-2 border-black ${activeTab === 'eingabe' ? 'scale-110' : ''}`}><Plus className="w-6 h-6" /></div>
+                    <div className={`relative w-14 h-14 bg-lime-500 text-black rounded-full flex items-center justify-center shadow-[0_5px_20px_rgba(132,204,22,0.4)] transform transition-transform active:scale-95 border-2 border-[#050505] ${activeTab === 'eingabe' ? 'scale-110' : ''}`}><Plus className="w-6 h-6" /></div>
                   </button>
-                  <button onClick={() => setActiveTab('logbuch')} className={`flex flex-col items-center justify-center w-12 h-12 rounded-2xl transition-all duration-300 ${activeTab === 'logbuch' ? 'text-lime-400 bg-white/5' : 'text-gray-500 hover:text-gray-300'}`}><CalendarIcon className="w-5 h-5" /></button>
-                  <button onClick={() => setActiveTab('stats')} className={`flex flex-col items-center justify-center w-12 h-12 rounded-2xl transition-all duration-300 ${activeTab === 'stats' ? 'text-lime-400 bg-white/5' : 'text-gray-500 hover:text-gray-300'}`}><BarChart2 className="w-5 h-5" /></button>
+                  <button onClick={() => setActiveTab('logbuch')} className={`flex flex-col items-center justify-center w-12 h-12 rounded-2xl transition-all duration-300 ${activeTab === 'logbuch' ? 'text-lime-400 bg-white/10' : 'text-gray-500 hover:text-gray-300'}`}><CalendarIcon className="w-5 h-5" /></button>
+                  <button onClick={() => setActiveTab('stats')} className={`flex flex-col items-center justify-center w-12 h-12 rounded-2xl transition-all duration-300 ${activeTab === 'stats' ? 'text-lime-400 bg-white/10' : 'text-gray-500 hover:text-gray-300'}`}><BarChart2 className="w-5 h-5" /></button>
                   {loggedInUser.role === 'admin' && (
-                      <button onClick={() => setActiveTab('admin')} className={`flex flex-col items-center justify-center w-12 h-12 rounded-2xl transition-all duration-300 ${activeTab === 'admin' ? 'text-blue-400 bg-blue-500/10' : 'text-gray-500 hover:text-blue-300'}`}><Settings className="w-5 h-5" /></button>
+                      <button onClick={() => setActiveTab('admin')} className={`flex flex-col items-center justify-center w-12 h-12 rounded-2xl transition-all duration-300 ${activeTab === 'admin' ? 'text-blue-400 bg-blue-500/20' : 'text-gray-500 hover:text-blue-300'}`}><Settings className="w-5 h-5" /></button>
                   )}
                 </nav>
               </div>
