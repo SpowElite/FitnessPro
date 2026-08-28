@@ -10,11 +10,17 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#050505">
     
+    <!-- EIGENES LOGO FÜR DEN HOMESCREEN -->
     <link rel="apple-touch-icon" href="Logo.PNG">
     <link rel="icon" type="image/png" href="Logo.PNG">
     
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Babel (Compiler für React) -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Custom Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@700&display=swap" rel="stylesheet">
     
     <style>
@@ -24,7 +30,14 @@
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .color-scheme-dark { color-scheme: dark; }
         .signature-font { font-family: 'Caveat', cursive; }
-        .timeline-line::before { content: ''; position: absolute; left: 0.375rem; top: 0.5rem; bottom: 0.5rem; width: 1px; background: rgba(255, 255, 255, 0.1); }
+        
+        /* Timeline line for grouped sets */
+        .timeline-line::before {
+            content: ''; position: absolute; left: 0.375rem; top: 0.5rem; bottom: 0.5rem;
+            width: 1px; background: rgba(255, 255, 255, 0.1);
+        }
+        
+        /* Checkbox Styling */
         input[type="checkbox"] { accent-color: #84cc16; width: 1.25rem; height: 1.25rem; cursor: pointer; }
         
         /* Apple Liquid Glass Basisklasse (VisionOS Style) */
@@ -88,7 +101,7 @@
         } catch (e) { console.error("Firebase Init Fehler", e); }
 
         // --- KONSTANTEN ---
-        const MUSCLE_GROUPS = ['Brust', 'Rücken', 'Beine', 'Schultern', 'Arme', 'Core'];
+        const MUSCLE_GROUPS = ['Brust', 'Rücken', 'Beine', 'Schultern', 'Arme', 'Core', 'Cardio'];
         const CARDIO_TYPES = ['Laufen (Joggen)', 'Sprint-Intervalle', 'Radfahren (Outdoor)', 'Radfahren (Indoor)', 'Schwimmen', 'Rudern', 'Treppensteigen (Stairmaster)', 'Wandern / Gehen'];
         
         const EXERCISES = {
@@ -97,7 +110,8 @@
           'Beine': ['Langhantel-Kniebeugen (Back Squat)', 'Frontkniebeugen', 'Goblet Squat', 'Hack Squat (Maschine)', '45-Grad-Beinpresse (mittig)', 'Beinpresse (Füße hoch)', 'Beinpresse (Füße tief)', 'Ausfallschritte nach vorne', 'Ausfallschritte nach hinten', 'Walking Lunges', 'Bulgarische Split Squats', 'Beinstrecker (Maschine)', 'Beinbeuger liegend (Maschine)', 'Beinbeuger sitzend (Maschine)', 'Beinbeuger stehend (einseitig)', 'Rumänisches Kreuzheben (Langhantel)', 'Rumänisches Kreuzheben (Kurzhanteln)', 'Hip Thrusts (Langhantel)', 'Hip Thrusts (Maschine)', 'Glute Bridges (Boden)', 'Einbeinige Glute Bridges', 'Wadenheben stehend (Maschine)', 'Wadenheben sitzend', 'Wadenheben an der Beinpresse', 'Einbeiniges Wadenheben', 'Sumo-Kniebeugen', 'Sissy Squats', 'Step-ups', 'Cossack Squats', 'Kettlebell Swings', 'Abduktoren-Maschine', 'Adduktoren-Maschine', 'Gestrecktes Kreuzheben', 'Box Squats', 'Bulgarian Split Squats (Smith-Machine)'],
           'Schultern': ['Schulterdrücken mit Langhantel', 'Schulterdrücken mit Kurzhanteln (sitzend)', 'Schulterdrücken mit Kurzhanteln (stehend)', 'Arnold Press', 'Seitheben mit Kurzhanteln (stehend)', 'Seitheben mit Kurzhanteln (sitzend)', 'Seitheben am Kabelzug', 'Seitheben an der Maschine', 'Frontheben mit Kurzhanteln', 'Plate Front Raise', 'Frontheben am Kabelzug', 'Rear Delt Flys (Kurzhanteln)', 'Vorgebeugtes Seitheben (Kabelzug)', 'Reverse Pec Deck (Maschine)', 'Face Pulls am Kabelzug (Seil)', 'Aufrechtes Rudern (Langhantel)', 'Aufrechtes Rudern (Kurzhanteln)', 'Aufrechtes Rudern (Kabelzug)', 'Push Press', 'Einarmige Landmine Press', 'Seated Shoulder Press Machine', 'Seated Dumbbell Clean and Press', 'High Pulls (Langhantel)', 'Y-Press', 'W-Press', 'Bradford Press', 'Cuban Press', 'Incline Lateral Raise', 'Einarmiges Seitheben in Seitenlage', 'Cable Upright Row (Seil)', 'Pike Push-ups', 'Handstand Push-ups', 'Scapular Push-ups', 'Z-Press', 'Overhead Squat'],
           'Arme': ['Langhantel-Bizepscurls', 'SZ-Stangen-Bizepscurls', 'Kurzhantel-Bizepscurls (stehend)', 'Kurzhantel-Bizepscurls (sitzend)', 'Hammercurls', 'Incline Dumbbell Curls', 'Konzentrationscurls', 'Curls am Kabelzug (Stange)', 'Curls am Kabelzug (Seil)', 'Scott-Curls / Preacher Curls', 'Preacher Curls (Maschine)', 'Konzentrationscurl (Kabelzug)', 'Spider Curls', 'Zottman Curls', 'Reverse Curls (Langhantel/SZ)', 'Reverse Curls (Kabelzug)', 'Drag Curls', 'Trizepsdrücken am Kabelzug (Seil)', 'Trizepsdrücken am Kabelzug (Stange/V-Griff)', 'Trizepsdrücken im Untergriff', 'Enges Bankdrücken', 'Skull Crushers (SZ-Stange)', 'Skull Crushers (Kurzhanteln)', 'Über-Kopf-Trizepsdrücken (Kurzhantel)', 'Über-Kopf-Trizepsdrücken (Kabelzug)', 'Trizeps-Kickbacks (Kurzhanteln)', 'Trizeps-Kickbacks (Kabelzug)', 'Dips (aufrecht/Trizeps)', 'Bankdips (Bench Dips)', 'Diamant-Liegestütz', 'Unterarm-Curls (Langhantel)', 'Reverse Unterarm-Curls (Langhantel)', 'Farmer\'s Walk', 'Handgripper', 'Plate Pinches'],
-          'Core': ['Klassische Crunches', 'Crunches auf dem Gymnastikball', 'Kneeling Cable Crunch', 'Sit-ups', 'Decline Sit-ups', 'Hanging Leg Raises', 'Hanging Knee Raises', 'Flat Leg Raises', 'Reverse Curls (Beckenheben)', 'Plank', 'Side Plank', 'Dynamischer Unterarmstütz', 'Russian Twists', 'Bicycle Crunches', 'Mountain Climbers', 'Flutter Kicks', 'Hollow Body Hold', 'Dead Bug', 'Bird-Dog', 'Ab Wheel Rollouts', 'Windshield Wipers', 'V-Ups', 'Toe Touches', 'Holzhacker (Woodchoppers)', 'Pallof Press', 'Dragon Flags', 'L-Sit', 'Seitlicher Crunch', 'Seitliches Oberkörperheben', 'Standing Cable Crunch', 'Weighted Plank', 'Sit-up mit Kurzhantel', 'Scissor Kicks', 'Einseitiger Farmer\'s Walk', 'Pike Crunches']
+          'Core': ['Klassische Crunches', 'Crunches auf dem Gymnastikball', 'Kneeling Cable Crunch', 'Sit-ups', 'Decline Sit-ups', 'Hanging Leg Raises', 'Hanging Knee Raises', 'Flat Leg Raises', 'Reverse Curls (Beckenheben)', 'Plank', 'Side Plank', 'Dynamischer Unterarmstütz', 'Russian Twists', 'Bicycle Crunches', 'Mountain Climbers', 'Flutter Kicks', 'Hollow Body Hold', 'Dead Bug', 'Bird-Dog', 'Ab Wheel Rollouts', 'Windshield Wipers', 'V-Ups', 'Toe Touches', 'Holzhacker (Woodchoppers)', 'Pallof Press', 'Dragon Flags', 'L-Sit', 'Seitlicher Crunch', 'Seitliches Oberkörperheben', 'Standing Cable Crunch', 'Weighted Plank', 'Sit-up mit Kurzhantel', 'Scissor Kicks', 'Einseitiger Farmer\'s Walk', 'Pike Crunches'],
+          'Cardio': ['Laufband', 'Fahrrad-Ergometer', 'Stairmaster', 'Rudergerät', 'Crosstrainer (Elliptical)', 'Assault Bike', 'Ski-Ergometer']
         };
         const SET_TYPES = ['Arbeitssatz', 'Aufwärmsatz', 'Dropset', 'Top-Set'];
 
@@ -410,7 +424,6 @@
           
           const [heatmapSettings, setHeatmapSettings] = useState({ exhausted: 24, recovering: 48 });
           const [isHeatmapModalOpen, setIsHeatmapModalOpen] = useState(false);
-          
           const [customExModal, setCustomExModal] = useState({ isOpen: false, muscle: '' });
           const [newCustomExName, setNewCustomExName] = useState('');
 
@@ -530,12 +543,11 @@
           const processLogin = () => {
               const u = appUsers.find(u => u.username.toUpperCase() === loginUsername.toUpperCase());
               if (!u) { showToast('Nutzer nicht gefunden', 'error'); setLoginPin(''); setLoginStep('username'); return; }
-              if (u.isBanned) { showToast('Dein Konto wurde vom Admin gesperrt!', 'error'); setLoginPin(''); setLoginStep('username'); return; }
+              if (u.isBanned) { showToast('Konto wurde vom Admin gesperrt!', 'error'); setLoginPin(''); setLoginStep('username'); return; }
               if (u.pin !== loginPin) { showToast('Falscher PIN', 'error'); setLoginPin(''); return; }
-              
               setLoggedInUser(u);
               setViewingUser(u); 
-              setIsProfileModalOpen(false); // EXPLIZITER FIX FÜR MODAL-BUG
+              setIsProfileModalOpen(false); 
               showToast(`Willkommen, ${u.username}!`);
           };
 
@@ -548,7 +560,7 @@
                   const u = { id: docRef.id, ...newUser };
                   setLoggedInUser(u);
                   setViewingUser(u);
-                  setIsProfileModalOpen(false); // EXPLIZITER FIX FÜR MODAL-BUG
+                  setIsProfileModalOpen(false); 
                   showToast("Konto erfolgreich erstellt!");
               } catch(e) { showToast("Registrierung fehlgeschlagen", "error"); }
           };
@@ -679,12 +691,8 @@
 
           const handleSaveSet = async () => {
             if (!firebaseUser || !db || !canEdit) return;
-            
             initAudio(); 
-            
-            let newSetData = {
-                date, trackingMode, timestamp: Date.now(), timeString: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
-            };
+            let newSetData = { date, trackingMode, timestamp: Date.now(), timeString: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) };
 
             if (trackingMode === 'kraft') {
                 if (!exercise || !reps) return;
@@ -797,7 +805,6 @@
 
           const renderTabAdmin = () => {
               const handleStartEditUser = (u) => {
-                  if (u.username === 'AYOUB') return showToast("Haupt-Admin AYOUB kann nicht bearbeitet werden", "error");
                   setAdminEditUserId(u.id);
                   setAdminEditData({ username: u.username, pin: u.pin });
               };
@@ -866,11 +873,15 @@
                                                   <span>Nutzer Bearbeiten</span><button onClick={() => setAdminEditUserId(null)}><X className="w-4 h-4 text-gray-400 hover:text-white" /></button>
                                               </div>
                                               <div className="flex gap-2">
-                                                  <input type="text" value={adminEditData.username} onChange={e=>setAdminEditData({...adminEditData, username: e.target.value})} className="flex-2 bg-black/60 text-white rounded-lg p-2 border border-white/20 outline-none uppercase w-full text-sm" placeholder="Name" />
+                                                  <input type="text" value={adminEditData.username} disabled={u.username === 'AYOUB'} onChange={e=>setAdminEditData({...adminEditData, username: e.target.value})} className={`flex-2 bg-black/60 text-white rounded-lg p-2 border border-white/20 outline-none uppercase w-full text-sm ${u.username === 'AYOUB' ? 'opacity-50 cursor-not-allowed' : ''}`} placeholder="Name" />
                                                   <input type="number" value={adminEditData.pin} onChange={e=>setAdminEditData({...adminEditData, pin: e.target.value.slice(0,4)})} className="flex-1 bg-black/60 text-white rounded-lg p-2 border border-white/20 outline-none text-center w-20 text-sm" placeholder="PIN" />
                                                   <button onClick={handleSaveEditUser} className="bg-blue-500 text-black p-2 rounded-lg font-bold"><Save className="w-5 h-5"/></button>
                                               </div>
-                                              <p className="text-[8px] text-red-400">Achtung: Änderung des Namens trennt die Historie vom alten Namen ab.</p>
+                                              {u.username === 'AYOUB' ? (
+                                                  <p className="text-[8px] text-blue-400">Der Name des Haupt-Admins ist geschützt. PIN kann geändert werden.</p>
+                                              ) : (
+                                                  <p className="text-[8px] text-red-400">Achtung: Änderung des Namens trennt die Historie vom alten Namen ab.</p>
+                                              )}
                                           </div>
                                       );
                                   }
@@ -886,15 +897,17 @@
                                           </div>
                                           <div className="flex items-center gap-2">
                                               <div className="text-[10px] font-bold text-gray-500 bg-black/50 px-2 py-1 rounded mr-2">PIN: {u.pin}</div>
-                                              {u.username !== 'AYOUB' && (
-                                                  <div className="flex gap-1">
-                                                      <button onClick={() => handleStartEditUser(u)} className="text-blue-400 hover:bg-blue-500/20 p-2 rounded transition"><Edit2 className="w-4 h-4"/></button>
-                                                      <button onClick={() => handleToggleBan(u.id, u.isBanned)} className={`p-2 rounded transition ${u.isBanned ? 'bg-amber-500/20 text-amber-500 hover:bg-amber-500/30' : 'text-gray-400 hover:bg-gray-800'}`}>
-                                                          {u.isBanned ? <Unlock className="w-4 h-4"/> : <Ban className="w-4 h-4"/>}
-                                                      </button>
-                                                      <button onClick={() => handleDeleteUser(u.id, u.username)} className="text-red-500 p-2 hover:bg-red-500/20 rounded transition"><Trash2 className="w-4 h-4"/></button>
-                                                  </div>
-                                              )}
+                                              <div className="flex gap-1">
+                                                  <button onClick={() => handleStartEditUser(u)} className="text-blue-400 hover:bg-blue-500/20 p-2 rounded transition"><Edit2 className="w-4 h-4"/></button>
+                                                  {u.username !== 'AYOUB' && (
+                                                      <>
+                                                          <button onClick={() => handleToggleBan(u.id, u.isBanned)} className={`p-2 rounded transition ${u.isBanned ? 'bg-amber-500/20 text-amber-500 hover:bg-amber-500/30' : 'text-gray-400 hover:bg-gray-800'}`}>
+                                                              {u.isBanned ? <Unlock className="w-4 h-4"/> : <Ban className="w-4 h-4"/>}
+                                                          </button>
+                                                          <button onClick={() => handleDeleteUser(u.id, u.username)} className="text-red-500 p-2 hover:bg-red-500/20 rounded transition"><Trash2 className="w-4 h-4"/></button>
+                                                      </>
+                                                  )}
+                                              </div>
                                           </div>
                                       </div>
                                   )
@@ -1443,85 +1456,6 @@
                 <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-900/20 rounded-full blur-[120px]"></div>
                 <div className="absolute top-[40%] right-[-10%] w-[30%] h-[30%] bg-blue-900/10 rounded-full blur-[100px]"></div>
               </div>
-
-              {/* PROFILE & COMMUNITY MODAL */}
-              {isProfileModalOpen && (
-                  <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
-                      <GlassCard className="w-full max-w-sm border-blue-500/50 shadow-[0_0_30px_rgba(59,130,246,0.2)]">
-                          <div className="flex justify-between items-center mb-6">
-                              <h3 className="font-bold text-white text-xl">Profil & Community</h3>
-                              <button onClick={() => setIsProfileModalOpen(false)}><X className="text-gray-400 hover:text-white"/></button>
-                          </div>
-
-                          <div className="space-y-6">
-                              <div>
-                                  <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Pausen-Alarm Einstellungen</h4>
-                                  <div className="bg-black/40 rounded-xl p-3 space-y-3">
-                                      <label className="flex items-center justify-between cursor-pointer">
-                                          <span className="text-sm flex items-center gap-2 text-white"><Bell className="w-4 h-4"/> Signalton (5 Sek)</span>
-                                          <input type="checkbox" checked={userSettings.sound} onChange={(e) => saveUserSettings({ sound: e.target.checked })} />
-                                      </label>
-                                      <label className="flex items-center justify-between cursor-pointer">
-                                          <span className="text-sm flex items-center gap-2 text-white"><Vibrate className="w-4 h-4"/> Vibration (nur Android)</span>
-                                          <input type="checkbox" checked={userSettings.vibration} onChange={(e) => saveUserSettings({ vibration: e.target.checked })} />
-                                      </label>
-                                      <p className="text-[9px] text-gray-500">Apple blockiert Vibration im Web leider komplett.</p>
-                                  </div>
-                              </div>
-
-                              <div>
-                                  <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Privatsphäre</h4>
-                                  <div className="bg-black/40 rounded-xl p-3 space-y-3 mb-6">
-                                      <label className="flex items-center justify-between cursor-pointer">
-                                          <span className="text-sm flex items-center gap-2 text-white"><EyeOff className="w-4 h-4"/> Profil verbergen</span>
-                                          <input type="checkbox" checked={loggedInUser?.isPrivate || false} onChange={(e) => togglePrivacy(e.target.checked)} />
-                                      </label>
-                                      <p className="text-[9px] text-gray-500">Andere Nutzer können deine Trainingsdaten nicht mehr ansehen.</p>
-                                  </div>
-                              </div>
-
-                              <div>
-                                  <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Community ansehen</h4>
-                                  <select value={viewingUser?.username} onChange={(e) => setViewingUser(appUsers.find(u => u.username === e.target.value))} className="w-full bg-black/40 text-white rounded-xl p-3 border border-white/20 outline-none text-sm font-bold uppercase">
-                                      {appUsers.filter(u => !u.isPrivate || u.username === loggedInUser.username || loggedInUser.role === 'admin').map(u => (
-                                          <option key={u.id} value={u.username}>{u.username} {u.username === loggedInUser.username ? '(Ich)' : ''}</option>
-                                      ))}
-                                  </select>
-                              </div>
-
-                              <button onClick={handleLogout} className="w-full flex justify-center items-center gap-2 text-red-500 hover:bg-red-500/10 p-3 rounded-xl font-bold transition">
-                                  <LogOut className="w-4 h-4" /> Abmelden
-                              </button>
-                          </div>
-                      </GlassCard>
-                  </div>
-              )}
-
-              {/* CUSTOM EXERCISE MODAL */}
-              {customExModal.isOpen && (
-                  <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-                      <GlassCard className="w-full max-w-sm border-lime-500/50 shadow-[0_0_30px_rgba(132,204,22,0.2)] relative animate-fade-in">
-                          <div className="flex justify-between items-center mb-4">
-                              <h3 className="font-bold text-white text-lg">Übungen für {customExModal.muscle}</h3>
-                              <button onClick={() => setCustomExModal({ isOpen: false, muscle: '' })}><X className="text-gray-400 hover:text-white"/></button>
-                          </div>
-                          <div className="flex gap-2 mb-6">
-                              <input type="text" placeholder="Neue Übung..." value={newCustomExName} onChange={e=>setNewCustomExName(e.target.value)} className="flex-1 bg-black/40 text-white rounded-lg p-3 border border-white/20 outline-none text-sm" />
-                              <button onClick={handleAddCustomExercise} className="bg-lime-500 text-black px-4 rounded-lg font-bold hover:bg-lime-400 transition"><Plus className="w-5 h-5"/></button>
-                          </div>
-                          <div className="space-y-2 max-h-48 overflow-y-auto hide-scrollbar">
-                              <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Deine eigenen Übungen</h4>
-                              {!(customExercises[customExModal.muscle]?.length > 0) && <p className="text-xs text-gray-500">Noch keine eigenen Übungen angelegt.</p>}
-                              {(customExercises[customExModal.muscle] || []).map(ex => (
-                                  <div key={ex} className="flex justify-between items-center bg-white/5 p-2 rounded-lg border border-white/10">
-                                      <span className="text-sm text-gray-200">{ex}</span>
-                                      <button onClick={() => handleDeleteCustomExercise(ex)} className="text-red-500 hover:text-red-400 p-1"><Trash2 className="w-4 h-4"/></button>
-                                  </div>
-                              ))}
-                          </div>
-                      </GlassCard>
-                  </div>
-              )}
 
               <header className="sticky top-0 z-20 px-5 py-4 bg-[#050505]/40 backdrop-blur-3xl border-b border-white/10 no-print">
                 <div className="flex items-center justify-between max-w-2xl mx-auto">
